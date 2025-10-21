@@ -40,9 +40,9 @@ export async function resizeImageFile(
   mimeType: string;
   size: number;
 }> {
-  const maxWidth = options.maxWidth ?? 1600;
-  const maxHeight = options.maxHeight ?? 1600;
-  const quality = options.quality ?? 0.82;
+  const maxWidth = options.maxWidth ?? 1200;
+  const maxHeight = options.maxHeight ?? 1200;
+  const quality = options.quality ?? 0.78;
 
   const originalDataUrl = await fileToDataUrl(file);
   const image = await loadImage(originalDataUrl);

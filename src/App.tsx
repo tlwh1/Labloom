@@ -5,84 +5,15 @@ import { NoteList } from "./components/NoteList";
 import { NoteDetail } from "./components/NoteDetail";
 import { NoteComposer, type NoteComposerDraft } from "./components/NoteComposer";
 import { mockNotes } from "./data/mockNotes";
-import { Note, type NoteAttachment, type NoteTag } from "./types/note";
+import { Note } from "./types/note";
 import { createNote, deleteNote, listNotes, updateNote } from "./lib/api";
 import type { NoteInput } from "./lib/api";
 import { parseTagInput } from "./lib/tags";
 import { createRandomId } from "./lib/id";
 import { loadLocalNotes, saveLocalNotes } from "./lib/localNotes";
+import { filterNotes, normalizeNote, sortNotesByUpdatedAt } from "./lib/notes";
 
-function filterNotes(
-  notes: Note[],
-  options: {
-    search: string;
-    category: string | null;
-    tags: string[];
-  }
-) {
-  const query = options.search.trim().toLowerCase();
-  return notes.filter((note) => {
-    const matchCategory = options.category ? note.category === options.category : true;
-    const matchTags =
-      options.tags.length === 0 || options.tags.every((tagId) => note.tags.some((tag) => tag.id === tagId));
-
-    const searchable = `${note.title} ${note.content} ${note.tags.map((tag) => tag.label).join(" ")}`.toLowerCase();
-    const matchQuery = query.length === 0 ? true : searchable.includes(query);
-
-    return matchCategory && matchTags && matchQuery;
-  });
-}
-
-type NormalizableAttachment = Partial<NoteAttachment> & {
-  name?: string;
-  size?: number;
-  type?: string;
-  previewUrl?: string;
-  dataUrl?: string;
-};
-
-type NormalizableNote = {
-  id: string;
-  title: string;
-  content: string;
-  createdAt: string;
-  updatedAt: string;
-  category?: string | null;
-  tags?: NoteTag[] | null;
-  attachments?: NormalizableAttachment[] | null;
-};
-
-function normalizeAttachment(attachment: NormalizableAttachment): NoteAttachment {
-  const fallbackPreview = attachment.previewUrl ?? attachment.dataUrl ?? "";
-  const dataUrl =
-    attachment.dataUrl ?? (fallbackPreview.startsWith("data:") ? fallbackPreview : undefined);
-
-  return {
-    id: attachment.id ?? createRandomId("att"),
-    name: attachment.name ?? "첨부파일",
-    size: typeof attachment.size === "number" ? attachment.size : 0,
-    type: attachment.type ?? "application/octet-stream",
-    previewUrl: fallbackPreview || undefined,
-    dataUrl
-  };
-}
-
-function normalizeNote(note: NormalizableNote): Note {
-  return {
-    id: note.id,
-    title: note.title,
-    content: note.content,
-    category: note.category ?? "",
-    tags: Array.isArray(note.tags) ? note.tags : [],
-    attachments: Array.isArray(note.attachments)
-      ? note.attachments.map((attachment) => normalizeAttachment(attachment))
-      : [],
-    createdAt: note.createdAt,
-    updatedAt: note.updatedAt
-  };
-}
-
-const normalizedMockNotes = mockNotes.map((note) => normalizeNote(note));
+const normalizedMockNotes = sortNotesByUpdatedAt(mockNotes.map((note) => normalizeNote(note)));
 
 export default function App() {
   const [initialNotes] = useState<Note[]>(() => {
@@ -143,7 +74,8 @@ export default function App() {
 
       if (!shouldUseRemote) {
         const stored = loadLocalNotes();
-        const normalized = stored.length > 0 ? stored.map((note) => normalizeNote(note)) : normalizedMockNotes;
+        const normalized =
+          stored.length > 0 ? sortNotesByUpdatedAt(stored.map((note) => normalizeNote(note))) : normalizedMockNotes;
         setAllNotes(normalized);
         saveLocalNotes(normalized);
         setSelectedNoteId(normalized[0]?.id ?? null);
@@ -157,7 +89,7 @@ export default function App() {
       try {
         const notes = await listNotes();
         if (Array.isArray(notes) && notes.length > 0) {
-          const normalizedRemote = notes.map(normalizeNote);
+          const normalizedRemote = sortNotesByUpdatedAt(notes.map(normalizeNote));
           setAllNotes(normalizedRemote);
           saveLocalNotes(normalizedRemote);
           setSelectedNoteId(normalizedRemote[0]?.id ?? null);
@@ -180,7 +112,8 @@ export default function App() {
         setRemoteEnabled(false);
         setRemoteHash(null);
         const stored = loadLocalNotes();
-        const normalized = stored.length > 0 ? stored.map((note) => normalizeNote(note)) : normalizedMockNotes;
+        const normalized =
+          stored.length > 0 ? sortNotesByUpdatedAt(stored.map((note) => normalizeNote(note))) : normalizedMockNotes;
         setAllNotes(normalized);
         saveLocalNotes(normalized);
         setLoadError(null);
@@ -390,7 +323,7 @@ export default function App() {
         );
 
         setAllNotes((prev) => {
-          const next = [finalNote, ...prev.filter((note) => note.id !== finalNote.id)];
+          const next = sortNotesByUpdatedAt([finalNote, ...prev.filter((note) => note.id !== finalNote.id)]);
           saveLocalNotes(next);
           setLocalHash(JSON.stringify(next));
           if (remoteEnabled && updatedNote) {
@@ -418,7 +351,7 @@ export default function App() {
         });
 
         setAllNotes((prev) => {
-          const next = [fallbackNote, ...prev.filter((note) => note.id !== fallbackNote.id)];
+          const next = sortNotesByUpdatedAt([fallbackNote, ...prev.filter((note) => note.id !== fallbackNote.id)]);
           saveLocalNotes(next);
           setLocalHash(JSON.stringify(next));
           return next;
@@ -460,7 +393,7 @@ export default function App() {
       );
 
       setAllNotes((prev) => {
-        const next = [finalNote, ...prev.filter((note) => note.id !== finalNote.id)];
+        const next = sortNotesByUpdatedAt([finalNote, ...prev.filter((note) => note.id !== finalNote.id)]);
         saveLocalNotes(next);
         const hash = JSON.stringify(next);
         setLocalHash(hash);
@@ -485,7 +418,7 @@ export default function App() {
       });
 
       setAllNotes((prev) => {
-        const next = [fallbackNote, ...prev.filter((note) => note.id !== fallbackNote.id)];
+        const next = sortNotesByUpdatedAt([fallbackNote, ...prev.filter((note) => note.id !== fallbackNote.id)]);
         saveLocalNotes(next);
         setLocalHash(JSON.stringify(next));
         return next;

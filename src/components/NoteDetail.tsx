@@ -5,6 +5,7 @@ import { marked } from "marked";
 import DOMPurify from "dompurify";
 import { Note } from "../types/note";
 import { TagBadge } from "./TagBadge";
+import { formatBytes } from "../lib/format";
 
 type NoteDetailProps = {
   note: Note | null;
@@ -37,7 +38,11 @@ export function NoteDetail({ note, onEdit, onDelete, disableActions = false, isD
       <header className="flex flex-col gap-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">{note.category}</p>
+            {note.category ? (
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">{note.category}</p>
+            ) : (
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-400 text-opacity-60">미분류</p>
+            )}
             <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{note.title}</h2>
           </div>
           <div className="flex flex-col items-end gap-2">
@@ -120,7 +125,8 @@ export function NoteDetail({ note, onEdit, onDelete, disableActions = false, isD
                         {attachment.name}
                       </span>
                       <span className="text-xs text-slate-400">
-                        {(attachment.size / (1024 * 1024)).toFixed(2)} MB · {attachment.type}
+                        {formatBytes(attachment.size)}
+                        {attachment.type ? ` · ${attachment.type}` : ""}
                       </span>
                     </div>
                   </div>

@@ -17,6 +17,8 @@ import { marked } from "marked";
 import DOMPurify from "dompurify";
 import TurndownService from "turndown";
 import dayjs from "../lib/dayjs";
+import { dedupeAttachments } from "../lib/notes";
+import { formatBytes } from "../lib/format";
 
 export type NoteComposerDraft = {
   title: string;
@@ -128,7 +130,7 @@ export function NoteComposer({
     setIsProcessingAttachments(true);
 
     try {
-      const processed = await Promise.all(
+      const processed = await Promise.all<NoteAttachment | null>(
         allowedFiles.map(async (file) => {
           try {
             const base: NoteAttachment = {
@@ -169,13 +171,8 @@ export function NoteComposer({
         })
       );
 
-      const nextAttachments = [...draft.attachments];
-      processed.forEach((attachment) => {
-        if (!attachment) return;
-        if (!nextAttachments.some((existing) => existing.dataUrl === attachment.dataUrl)) {
-          nextAttachments.push(attachment);
-        }
-      });
+      const validAttachments = processed.filter((attachment): attachment is NoteAttachment => Boolean(attachment));
+      const nextAttachments = dedupeAttachments(draft.attachments, validAttachments);
 
       syncMarkdownFromEditor(nextAttachments);
     } catch (attachmentError) {
@@ -273,12 +270,7 @@ export function NoteComposer({
         selection.removeAllRanges();
         selection.addRange(range);
 
-        const nextAttachments = [...draft.attachments];
-        addedAttachments.forEach((attachment) => {
-          if (!nextAttachments.some((existing) => existing.dataUrl === attachment.dataUrl)) {
-            nextAttachments.push(attachment);
-          }
-        });
+        const nextAttachments = dedupeAttachments(draft.attachments, addedAttachments);
 
         syncMarkdownFromEditor(nextAttachments);
       } finally {
@@ -423,7 +415,7 @@ export function NoteComposer({
                 <div className="flex flex-col">
                   <span className="font-medium">{attachment.name}</span>
                   <span className="text-xs text-slate-400">
-                    {(attachment.size / (1024 * 1024)).toFixed(2)} MB · {attachment.type || "파일"}
+                    {formatBytes(attachment.size)} · {attachment.type || "파일"}
                   </span>
                 </div>
                 <button

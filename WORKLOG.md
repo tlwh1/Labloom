@@ -1,6 +1,11 @@
 # 작업 로그
 
 > 최신 작업을 문서 상단에 추가해주세요.
+## 2025-10-22 — 메모 유틸 모듈화 및 품질 보강
+- `src/lib/notes.ts`에서 메모 정규화·정렬·중복 첨부 제거 유틸을 모듈화하고, `App.tsx`는 해당 유틸을 사용해 원격/로컬 데이터를 일관된 정렬로 노출하도록 개선.
+- 첨부파일 용량 출력을 `formatBytes`(신규)로 통일하고, NoteDetail/NoteComposer UI의 빈 카테고리 표기와 첨부 출력 품질을 손봤습니다.
+- Vitest 기반 단위 테스트(`src/lib/notes.spec.ts`, `src/lib/format.spec.ts`)를 추가해 필터링, 정규화, 포맷 로직을 검증하고 `npx tsc --noEmit`으로 타입 검사를 통과시켰습니다.
+- 확인: `npm run test`, `npm run build`, `npm run lint`는 WSL 환경에서 `@rollup/rollup-linux-x64-gnu`와 `@typescript-eslint/parser` 미설치로 실패하며, 원복을 위해 해당 패키지 재설치가 필요합니다.
 ## 2025-10-21 — 메모 작성 UI 및 API 토글
 - `src/App.tsx`에 로컬/원격 API 전환(`VITE_USE_REMOTE_API`)을 도입하고, 새 메모 작성을 위한 `NoteComposer` 흐름과 임시 저장 로직을 추가.
 - `src/components/NoteComposer.tsx`, `src/lib/tags.ts` 등 보조 유틸을 생성해 태그 파싱과 ID 생성을 모듈화.

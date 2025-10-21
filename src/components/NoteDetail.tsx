@@ -14,6 +14,9 @@ export function NoteDetail({ note }: NoteDetailProps) {
   const rendered = useMemo(() => {
     if (!note) return "";
     const rawHtml = marked.parse(note.content, { breaks: true });
+    if (typeof rawHtml !== "string") {
+      return "";
+    }
     return DOMPurify.sanitize(rawHtml);
   }, [note]);
 

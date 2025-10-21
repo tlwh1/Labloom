@@ -12,6 +12,8 @@ import { parseTagInput } from "../lib/tags";
 import { createRandomId } from "../lib/id";
 import type { NoteAttachment } from "../types/note";
 import { estimateDataUrlSize, fileToDataUrl, resizeImageFile } from "../lib/images";
+import { marked } from "marked";
+import DOMPurify from "dompurify";
 
 export type NoteComposerDraft = {
   title: string;
@@ -46,6 +48,11 @@ export function NoteComposer({
   const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024; // 10MB
   const isEditMode = mode === "edit";
   const contentRef = useRef<HTMLTextAreaElement | null>(null);
+  const renderedPreview = useMemo(() => {
+    const raw = marked.parse(draft.content, { breaks: true });
+    if (typeof raw !== "string") return "";
+    return DOMPurify.sanitize(raw);
+  }, [draft.content]);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -279,6 +286,25 @@ export function NoteComposer({
           placeholder="핵심 메모를 적어주세요. 목록에서는 앞부분만 표시됩니다."
         />
       </label>
+
+      <section className="space-y-3">
+        <header className="flex items-center justify-between">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+            미리보기
+          </h3>
+          <span className="text-xs text-slate-400">이미지는 실제 크기와 동일하게 표시됩니다.</span>
+        </header>
+        <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-white/50 dark:bg-slate-900/30 px-4 py-3 overflow-auto">
+          {draft.content.trim().length === 0 ? (
+            <p className="text-xs text-slate-400">본문을 입력하거나 이미지를 붙여넣으면 여기서 바로 확인할 수 있어요.</p>
+          ) : (
+            <article
+              className="prose prose-slate dark:prose-invert max-w-none text-sm leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: renderedPreview }}
+            />
+          )}
+        </div>
+      </section>
 
       <section className="space-y-3">
         <header className="flex items-center justify-between">

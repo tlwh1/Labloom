@@ -10,6 +10,7 @@
 - 새 메모 작성 폼에 첨부파일 업로드 UI(`src/components/NoteComposer.tsx`)를 추가하고, Data URL 기반으로 저장·미리보기할 수 있도록 상세 화면을 확장.
 - 메모 수정·삭제 흐름을 도입해(`src/App.tsx`, `src/components/NoteDetail.tsx`) 원격 API와 로컬 저장소가 모두 동기화되도록 처리.
 - 본문 입력 영역에서 이미지 붙여넣기를 지원하고(`src/components/NoteComposer.tsx`), 1600px 기준으로 리사이징해 인라인 Markdown으로 삽입되도록 구성.
+- 편집 시 별도의 미리보기 영역을 추가해 Markdown을 입력하면서도 이미지와 서식을 실시간으로 확인 가능하도록 개선.
 - 확인: `npm run build` 실행 시 `tsc` 바이너리가 없어 실패(`tsc: not found`)하여 설치 후 재시도가 필요.
 
 ## 2025-10-21 — Netlify Functions & CRUD 기본기

@@ -4,6 +4,7 @@
 ## 2025-10-21 — 메모 작성 UI 및 API 토글
 - `src/App.tsx`에 로컬/원격 API 전환(`VITE_USE_REMOTE_API`)을 도입하고, 새 메모 작성을 위한 `NoteComposer` 흐름과 임시 저장 로직을 추가.
 - `src/components/NoteComposer.tsx`, `src/lib/tags.ts` 등 보조 유틸을 생성해 태그 파싱과 ID 생성을 모듈화.
+- Netlify Functions에서 DB URL이 비어 있을 때 `db/local-notes.json` 파일을 활용하는 로컬 스토리지(`netlify/functions/_shared/local-store.ts`)를 추가하고, CRUD 함수 전반에 적용.
 - 확인: `npm run build` 실행 시 `tsc` 바이너리가 없어 실패(`tsc: not found`)하여 설치 후 재시도가 필요.
 
 ## 2025-10-21 — Netlify Functions & CRUD 기본기

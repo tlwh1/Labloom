@@ -53,13 +53,15 @@ export default function App() {
     [allNotes, search, selectedCategory, selectedTags]
   );
 
-  const useRemoteApi = import.meta.env.VITE_USE_REMOTE_API === "true";
+  const useRemoteApi =
+    import.meta.env.VITE_USE_REMOTE_API === "true" ||
+    (import.meta.env.DEV && import.meta.env.VITE_USE_REMOTE_API !== "false");
 
   const fetchNotes = useCallback(async () => {
     if (!useRemoteApi) {
       setAllNotes(mockNotes);
       setSelectedNoteId(mockNotes[0]?.id ?? null);
-      setLoadError("Netlify Functions 연결을 설정하기 전까지는 목업 데이터를 사용합니다.");
+      setLoadError("Netlify Functions를 실행하기 전이라 목업 데이터를 사용합니다.");
       return;
     }
 
@@ -78,7 +80,7 @@ export default function App() {
     } catch (error) {
       console.warn("원격 메모를 불러오지 못했습니다. mock 데이터로 대체합니다.", error);
       setAllNotes(mockNotes);
-      setLoadError("Neon 연결을 확인하기 전까지는 목업 데이터를 사용합니다.");
+      setLoadError("Netlify Functions 또는 데이터베이스 연결을 확인하기 전까지는 목업 데이터를 사용합니다.");
       setSelectedNoteId(mockNotes[0]?.id ?? null);
     } finally {
       setIsSyncing(false);

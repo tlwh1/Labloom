@@ -1,6 +1,7 @@
 import type { Handler } from "@netlify/functions";
-import { getSqlClient } from "./_shared/db";
+import { getSqlClient, hasDatabaseConnection } from "./_shared/db";
 import { badRequest, handleError, json, methodNotAllowed, noContent, notFound } from "./_shared/http";
+import { localDeleteNote } from "./_shared/local-store";
 
 const handler: Handler = async (event) => {
   if (event.httpMethod === "OPTIONS") {
@@ -18,6 +19,14 @@ const handler: Handler = async (event) => {
   }
 
   try {
+    if (!hasDatabaseConnection()) {
+      const deleted = await localDeleteNote(id);
+      if (!deleted) {
+        return notFound("삭제할 메모를 찾을 수 없습니다.");
+      }
+      return json(200, { id: deleted });
+    }
+
     const sql = getSqlClient();
     const result = await sql(
       `

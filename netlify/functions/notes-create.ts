@@ -1,7 +1,8 @@
 import type { Handler } from "@netlify/functions";
-import { getSqlClient } from "./_shared/db";
+import { getSqlClient, hasDatabaseConnection } from "./_shared/db";
 import { badRequest, handleError, json, methodNotAllowed, noContent } from "./_shared/http";
 import { notePayloadSchema } from "./_shared/validation";
+import { localCreateNote } from "./_shared/local-store";
 
 const handler: Handler = async (event) => {
   if (event.httpMethod === "OPTIONS") {
@@ -23,6 +24,11 @@ const handler: Handler = async (event) => {
     }
 
     const payload = parsed.data;
+    if (!hasDatabaseConnection()) {
+      const note = await localCreateNote(payload);
+      return json(201, note);
+    }
+
     const sql = getSqlClient();
 
     const result = await sql(

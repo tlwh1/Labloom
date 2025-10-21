@@ -3,12 +3,19 @@ Personal portfolio site
 
 ## Notes Console Quick Start
 
-- 기본 개발 모드에서는 Netlify Functions 연결 여부와 상관없이 목업 데이터를 사용합니다.
-- `.env.local`에 `VITE_USE_REMOTE_API=true`를 설정하면 `/netlify/functions` API로 메모를 불러오고 저장합니다.
-- 원격 API가 실패하면 자동으로 목업 데이터로 대체되고, 저장 실패 시 임시 메모가 로컬 상태에 추가됩니다.
+- `npm run dev`와 `netlify dev`를 동시에 실행하면 Vite 프론트엔드가 Netlify Functions에 프록시되어 바로 테스트할 수 있습니다.
+- Functions가 로컬에서 실행되고 DB URL이 비어 있으면 `db/local-notes.json` 파일을 자동으로 사용해 CRUD 요청을 처리합니다.
+- `.env.local`에 `VITE_USE_REMOTE_API=false`를 명시하면 함수 호출 없이 mock 데이터만으로 UI를 미리보기 할 수 있습니다.
+- 원격 API 호출이 실패하면 mock 데이터로 자동 전환되며, 저장 실패 시 임시 메모가 로컬 상태에 추가됩니다.
 
 ## Create A Note
 
 1. 화면 우측 상단의 `새 메모 만들기` 버튼을 클릭합니다.
 2. 제목, 카테고리, 쉼표로 구분한 태그, 내용을 입력합니다. Markdown을 지원합니다.
 3. `메모 저장`을 누르면 목록 상단에 새 메모가 추가되며, 원격 저장이 활성화되어 있다면 Netlify Functions로 전송됩니다.
+
+## Local JSON Store
+
+- 로컬 테스트 시 데이터는 `db/local-notes.json`에 저장됩니다. 서버를 재시작해도 파일이 유지되므로 손쉽게 시나리오를 재현할 수 있습니다.
+- 파일 경로를 바꾸고 싶다면 환경 변수 `LOCAL_NOTES_DB`에 새 경로를 지정하세요.
+- Netlify Functions에 데이터베이스 URL이 설정되면 자동으로 PostgreSQL 연결로 전환됩니다.

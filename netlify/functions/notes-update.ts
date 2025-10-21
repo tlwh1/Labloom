@@ -1,7 +1,8 @@
 import type { Handler } from "@netlify/functions";
-import { getSqlClient } from "./_shared/db";
+import { getSqlClient, hasDatabaseConnection } from "./_shared/db";
 import { badRequest, handleError, json, methodNotAllowed, noContent, notFound } from "./_shared/http";
 import { noteUpdateSchema } from "./_shared/validation";
+import { localUpdateNote } from "./_shared/local-store";
 
 const handler: Handler = async (event) => {
   if (event.httpMethod === "OPTIONS") {
@@ -23,6 +24,14 @@ const handler: Handler = async (event) => {
     }
 
     const payload = parsed.data;
+    if (!hasDatabaseConnection()) {
+      const updatedNote = await localUpdateNote(payload);
+      if (!updatedNote) {
+        return notFound("업데이트할 메모를 찾을 수 없습니다.");
+      }
+      return json(200, updatedNote);
+    }
+
     const sql = getSqlClient();
 
     const result = await sql(

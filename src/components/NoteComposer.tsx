@@ -19,6 +19,7 @@ type NoteComposerProps = {
   onSubmit: () => void;
   isSubmitting: boolean;
   error: string | null;
+  mode: "create" | "edit";
 };
 
 export function NoteComposer({
@@ -27,12 +28,14 @@ export function NoteComposer({
   onCancel,
   onSubmit,
   isSubmitting,
-  error
+  error,
+  mode
 }: NoteComposerProps) {
   const previewTags = useMemo(() => parseTagInput(draft.tagsInput), [draft.tagsInput]);
   const [isProcessingAttachments, setIsProcessingAttachments] = useState(false);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024; // 10MB
+  const isEditMode = mode === "edit";
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -98,10 +101,12 @@ export function NoteComposer({
     }
   };
 
-  const handleAttachmentRemove = (id: string | undefined) => {
+  const handleAttachmentRemove = (id: string | undefined, index: number) => {
     onChange({
       ...draft,
-      attachments: draft.attachments.filter((attachment) => attachment.id !== id)
+      attachments: draft.attachments.filter((attachment, attachmentIndex) =>
+        id ? attachment.id !== id : attachmentIndex !== index
+      )
     });
   };
 
@@ -112,9 +117,13 @@ export function NoteComposer({
     >
       <header className="space-y-3">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">새 메모 작성</h2>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+            {isEditMode ? "메모 수정" : "새 메모 작성"}
+          </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            제목과 내용을 입력하고 저장하면 목록에 메모가 추가됩니다.
+            {isEditMode
+              ? "내용과 첨부파일을 업데이트하고 저장하면 변경 사항이 반영됩니다."
+              : "제목과 내용을 입력하고 저장하면 목록에 메모가 추가됩니다."}
           </p>
         </div>
         {error && (
@@ -227,7 +236,7 @@ export function NoteComposer({
 
         {draft.attachments.length > 0 && (
           <ul className="space-y-2">
-            {draft.attachments.map((attachment) => (
+            {draft.attachments.map((attachment, index) => (
               <li
                 key={attachment.id}
                 className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--color-border)] bg-white/80 dark:bg-slate-800/50 px-4 py-3 text-sm text-slate-600 dark:text-slate-200"
@@ -241,7 +250,7 @@ export function NoteComposer({
                 <button
                   type="button"
                   className="text-xs text-accent hover:underline"
-                  onClick={() => handleAttachmentRemove(attachment.id)}
+                  onClick={() => handleAttachmentRemove(attachment.id, index)}
                 >
                   제거
                 </button>
@@ -270,7 +279,13 @@ export function NoteComposer({
           className="rounded-full bg-accent px-6 py-2 text-sm font-semibold text-white shadow hover:shadow-lg transition disabled:cursor-not-allowed disabled:opacity-70"
           disabled={isSubmitting || isProcessingAttachments}
         >
-          {isSubmitting ? "저장 중..." : isProcessingAttachments ? "첨부 변환 중" : "메모 저장"}
+          {isSubmitting
+            ? "저장 중..."
+            : isProcessingAttachments
+              ? "첨부 변환 중"
+              : isEditMode
+                ? "변경 사항 저장"
+                : "메모 저장"}
         </button>
       </footer>
     </form>

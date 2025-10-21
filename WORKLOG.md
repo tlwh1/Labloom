@@ -8,6 +8,7 @@
 - 원격/로컬 생성 시 `category` 등의 필드를 보정하는 `normalizeNote` 유틸을 적용해 타입 빌드 오류를 해결.
 - 프론트엔드에서 원격 API 실패 시 `localStorage`에 메모를 캐시해 새로고침 후에도 데이터가 유지되도록 보완.
 - 새 메모 작성 폼에 첨부파일 업로드 UI(`src/components/NoteComposer.tsx`)를 추가하고, Data URL 기반으로 저장·미리보기할 수 있도록 상세 화면을 확장.
+- 메모 수정·삭제 흐름을 도입해(`src/App.tsx`, `src/components/NoteDetail.tsx`) 원격 API와 로컬 저장소가 모두 동기화되도록 처리.
 - 확인: `npm run build` 실행 시 `tsc` 바이너리가 없어 실패(`tsc: not found`)하여 설치 후 재시도가 필요.
 
 ## 2025-10-21 — Netlify Functions & CRUD 기본기

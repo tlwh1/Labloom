@@ -5,7 +5,7 @@ import { NoteDetail } from "./components/NoteDetail";
 import { NoteComposer, type NoteComposerDraft } from "./components/NoteComposer";
 import { mockNotes } from "./data/mockNotes";
 import { Note, type NoteAttachment, type NoteTag } from "./types/note";
-import { createNote, listNotes } from "./lib/api";
+import { createNote, deleteNote, listNotes, updateNote } from "./lib/api";
 import type { NoteInput } from "./lib/api";
 import { parseTagInput } from "./lib/tags";
 import { createRandomId } from "./lib/id";
@@ -102,6 +102,9 @@ export default function App() {
   const [composerDraft, setComposerDraft] = useState<NoteComposerDraft | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [composerError, setComposerError] = useState<string | null>(null);
+  const [composerMode, setComposerMode] = useState<"create" | "edit">("create");
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const defaultRemotePreference =
     import.meta.env.VITE_USE_REMOTE_API === "true" ||
@@ -191,6 +194,70 @@ export default function App() {
 
   const selectedNote = filteredNotes.find((note) => note.id === selectedNoteId) ?? null;
 
+  const handleEditCurrentNote = useCallback(() => {
+    const noteToEdit =
+      selectedNote ?? (selectedNoteId ? allNotes.find((note) => note.id === selectedNoteId) ?? null : null);
+
+    if (!noteToEdit) return;
+
+    setComposerMode("edit");
+    setEditingNoteId(noteToEdit.id);
+    setComposerDraft({
+      title: noteToEdit.title,
+      content: noteToEdit.content,
+      category: noteToEdit.category,
+      tagsInput: noteToEdit.tags.map((tag) => tag.label).join(", "),
+      attachments: noteToEdit.attachments.map((attachment) => ({ ...attachment }))
+    });
+    setComposerError(null);
+  }, [selectedNote, selectedNoteId, allNotes]);
+
+  const handleDeleteCurrentNote = useCallback(async () => {
+    const noteToDelete =
+      selectedNote ?? (selectedNoteId ? allNotes.find((note) => note.id === selectedNoteId) ?? null : null);
+
+    if (!noteToDelete) return;
+
+    const confirmed = window.confirm(`"${noteToDelete.title}" 메모를 삭제할까요?`);
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    let remoteError = false;
+    let attemptedRemote = false;
+
+    try {
+      if (remoteEnabled) {
+        attemptedRemote = true;
+        await deleteNote(noteToDelete.id);
+        setRemoteEnabled(true);
+        setLoadError(null);
+      }
+    } catch (error) {
+      remoteError = true;
+      console.warn("메모 삭제 중 문제가 발생했습니다. 로컬 데이터에서 제거합니다.", error);
+      setRemoteEnabled(false);
+    } finally {
+      setAllNotes((prev) => {
+        const next = prev.filter((note) => note.id !== noteToDelete.id);
+        saveLocalNotes(next);
+        const fallbackId = next[0]?.id ?? null;
+        setSelectedNoteId(fallbackId);
+        return next;
+      });
+      setComposerDraft(null);
+      setEditingNoteId(null);
+      setComposerMode("create");
+      setComposerError(null);
+      setIsDeleting(false);
+
+      if (remoteError) {
+        setLoadError("원격 삭제에 실패했습니다. 로컬 데이터에서 제거했습니다.");
+      } else if (attemptedRemote) {
+        setLoadError(null);
+      }
+    }
+  }, [selectedNote, selectedNoteId, allNotes, remoteEnabled]);
+
   const handleTagToggle = (tagId: string) => {
     setSelectedTags((prev) =>
       prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
@@ -207,6 +274,8 @@ export default function App() {
     });
     setComposerError(null);
     setSelectedNoteId(null);
+    setComposerMode("create");
+    setEditingNoteId(null);
   };
 
   const handleManualSync = () => {
@@ -218,6 +287,8 @@ export default function App() {
       setComposerDraft(null);
       setComposerError(null);
       setSelectedNoteId(id);
+      setEditingNoteId(null);
+      setComposerMode("create");
     },
     []
   );
@@ -225,6 +296,8 @@ export default function App() {
   const handleCancelComposer = () => {
     setComposerDraft(null);
     setComposerError(null);
+    setEditingNoteId(null);
+    setComposerMode("create");
   };
 
   const handleComposerSubmit = useCallback(async () => {
@@ -250,12 +323,83 @@ export default function App() {
     setComposerError(null);
     setIsSaving(true);
 
+    const isEditModeActive = composerMode === "edit" && editingNoteId !== null;
+
+    if (isEditModeActive) {
+      const existingNote = allNotes.find((note) => note.id === editingNoteId) ?? null;
+
+      try {
+        let updatedNote: Note | null = null;
+
+        if (remoteEnabled) {
+          const remoteNote = await updateNote(editingNoteId, payload);
+          updatedNote = normalizeNote(remoteNote);
+          setRemoteEnabled(true);
+          setLoadError(null);
+        }
+
+        const finalNote = normalizeNote(
+          updatedNote ?? {
+            id: editingNoteId,
+            title: payload.title,
+            content: payload.content,
+            category: payload.category ?? "",
+            tags: payload.tags ?? [],
+            attachments: payload.attachments ?? [],
+            createdAt: existingNote?.createdAt ?? nowIso,
+            updatedAt: nowIso
+          }
+        );
+
+        setAllNotes((prev) => {
+          const next = [finalNote, ...prev.filter((note) => note.id !== finalNote.id)];
+          saveLocalNotes(next);
+          return next;
+        });
+        setSelectedNoteId(finalNote.id);
+        setComposerDraft(null);
+        setEditingNoteId(null);
+        setComposerMode("create");
+      } catch (error) {
+        console.warn("메모 업데이트 중 문제가 발생했습니다. 로컬 데이터로 대체합니다.", error);
+        setRemoteEnabled(false);
+
+        const fallbackNote = normalizeNote({
+          id: editingNoteId,
+          title: payload.title,
+          content: payload.content,
+          category: payload.category ?? "",
+          tags: payload.tags ?? [],
+          attachments: payload.attachments ?? [],
+          createdAt: existingNote?.createdAt ?? nowIso,
+          updatedAt: nowIso
+        });
+
+        setAllNotes((prev) => {
+          const next = [fallbackNote, ...prev.filter((note) => note.id !== fallbackNote.id)];
+          saveLocalNotes(next);
+          return next;
+        });
+        setSelectedNoteId(fallbackNote.id);
+        setLoadError("원격 업데이트에 실패했습니다. 로컬 데이터에만 반영했습니다.");
+        setComposerDraft(null);
+        setEditingNoteId(null);
+        setComposerMode("create");
+      } finally {
+        setIsSaving(false);
+      }
+
+      return;
+    }
+
     try {
       let createdNote: Note | null = null;
 
       if (remoteEnabled) {
         const remoteNote = await createNote(payload);
         createdNote = normalizeNote(remoteNote);
+        setRemoteEnabled(true);
+        setLoadError(null);
       }
 
       const finalNote = normalizeNote(
@@ -277,11 +421,9 @@ export default function App() {
         return next;
       });
       setSelectedNoteId(finalNote.id);
-      if (remoteEnabled && createdNote) {
-        setLoadError(null);
-        setRemoteEnabled(true);
-      }
       setComposerDraft(null);
+      setComposerMode("create");
+      setEditingNoteId(null);
     } catch (error) {
       console.warn("메모 생성 중 문제가 발생했습니다. 임시 메모로 대체합니다.", error);
       setRemoteEnabled(false);
@@ -301,10 +443,14 @@ export default function App() {
       setSelectedNoteId(fallbackNote.id);
       setLoadError("원격 저장에 실패했습니다. 임시로 로컬에 추가했습니다.");
       setComposerDraft(null);
+      setComposerMode("create");
+      setEditingNoteId(null);
     } finally {
       setIsSaving(false);
     }
-  }, [composerDraft, remoteEnabled]);
+  }, [composerDraft, composerMode, editingNoteId, remoteEnabled, allNotes]);
+
+  const disableActions = isSaving || isDeleting;
 
   return (
     <div className="relative min-h-screen px-6 py-10 md:px-10 bg-[var(--color-background)]">
@@ -357,6 +503,7 @@ export default function App() {
         />
         {composerDraft ? (
           <NoteComposer
+            mode={composerMode}
             draft={composerDraft}
             onChange={(nextDraft) => setComposerDraft(nextDraft)}
             onCancel={handleCancelComposer}
@@ -365,7 +512,13 @@ export default function App() {
             error={composerError}
           />
         ) : (
-          <NoteDetail note={selectedNote} />
+          <NoteDetail
+            note={selectedNote}
+            onEdit={handleEditCurrentNote}
+            onDelete={handleDeleteCurrentNote}
+            disableActions={disableActions}
+            isDeleting={isDeleting}
+          />
         )}
       </div>
     </div>

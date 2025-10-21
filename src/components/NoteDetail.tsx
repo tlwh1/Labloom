@@ -8,9 +8,13 @@ import { TagBadge } from "./TagBadge";
 
 type NoteDetailProps = {
   note: Note | null;
+  onEdit: (note: Note) => void;
+  onDelete: (note: Note) => void;
+  disableActions?: boolean;
+  isDeleting?: boolean;
 };
 
-export function NoteDetail({ note }: NoteDetailProps) {
+export function NoteDetail({ note, onEdit, onDelete, disableActions = false, isDeleting = false }: NoteDetailProps) {
   const rendered = useMemo(() => {
     if (!note) return "";
     const rawHtml = marked.parse(note.content, { breaks: true });
@@ -36,15 +40,35 @@ export function NoteDetail({ note }: NoteDetailProps) {
             <p className="text-xs uppercase tracking-[0.2em] text-slate-400">{note.category}</p>
             <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{note.title}</h2>
           </div>
-          <div className="text-right text-xs text-slate-400 space-y-1">
-            <p>
-              작성:{" "}
-              <time dateTime={note.createdAt}>{dayjs(note.createdAt).format("YYYY.MM.DD HH:mm")}</time>
-            </p>
-            <p>
-              수정:{" "}
-              <time dateTime={note.updatedAt}>{dayjs(note.updatedAt).format("YYYY.MM.DD HH:mm")}</time>
-            </p>
+          <div className="flex flex-col items-end gap-2">
+            <div className="text-right text-xs text-slate-400 space-y-1">
+              <p>
+                작성:{" "}
+                <time dateTime={note.createdAt}>{dayjs(note.createdAt).format("YYYY.MM.DD HH:mm")}</time>
+              </p>
+              <p>
+                수정:{" "}
+                <time dateTime={note.updatedAt}>{dayjs(note.updatedAt).format("YYYY.MM.DD HH:mm")}</time>
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onEdit(note)}
+                className="rounded-full border border-[var(--color-border)] bg-white/70 dark:bg-slate-800/40 px-3 py-1 text-xs font-medium text-slate-600 dark:text-slate-200 hover:bg-white transition disabled:opacity-60 disabled:cursor-not-allowed"
+                disabled={disableActions}
+              >
+                수정
+              </button>
+              <button
+                type="button"
+                onClick={() => onDelete(note)}
+                className="rounded-full bg-red-500/90 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-red-500 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                disabled={disableActions}
+              >
+                {isDeleting ? "삭제 중..." : "삭제"}
+              </button>
+            </div>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">

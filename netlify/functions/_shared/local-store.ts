@@ -15,6 +15,7 @@ type StoredNote = {
     size: number;
     type: string;
     previewUrl?: string;
+    dataUrl?: string;
   }>;
   createdAt: string;
   updatedAt: string;

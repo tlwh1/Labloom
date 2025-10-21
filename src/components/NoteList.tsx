@@ -26,7 +26,16 @@ export function NoteList({ notes, selectedId, onSelect }: NoteListProps) {
         {notes.map((note) => {
           const isActive = selectedId === note.id;
           const parsed = marked.parse(note.content ?? "", { breaks: true });
-          const previewHtml = typeof parsed === "string" ? DOMPurify.sanitize(parsed) : "";
+          const rawHtml = typeof parsed === "string" ? parsed : "";
+          const hadInlineImages = /<img\s/i.test(rawHtml);
+          const sanitizedPreview = rawHtml
+            ? DOMPurify.sanitize(rawHtml, {
+                FORBID_TAGS: ["img"]
+              })
+            : "";
+          const previewHtml = hadInlineImages
+            ? `${sanitizedPreview} <span class="ml-2 inline-flex items-center gap-1 rounded-full bg-slate-200/70 px-2 py-[0.1rem] text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:bg-slate-700/50 dark:text-slate-200">이미지</span>`
+            : sanitizedPreview;
           const imageAttachments = note.attachments.filter((attachment) =>
             (attachment.type ?? "").startsWith("image/") || (attachment.previewUrl ?? attachment.dataUrl ?? "").startsWith("data:image")
           );
@@ -57,8 +66,7 @@ export function NoteList({ notes, selectedId, onSelect }: NoteListProps) {
                 <div
                   className={clsx(
                     "text-sm note-preview min-h-[1.5rem] max-h-20 overflow-hidden",
-                    isActive ? "text-white/90" : "text-slate-500 dark:text-slate-400",
-                    "[&_img]:max-h-16 [&_img]:rounded-lg [&_img]:object-cover [&_img]:border [&_img]:border-white/40 [&_img]:shadow-sm"
+                    isActive ? "text-white/90" : "text-slate-500 dark:text-slate-400"
                   )}
                   dangerouslySetInnerHTML={{ __html: previewHtml }}
                 />

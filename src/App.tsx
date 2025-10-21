@@ -19,7 +19,7 @@ export default function App() {
   const [initialNotes] = useState<Note[]>(() => {
     const stored = loadLocalNotes();
     if (stored.length > 0) {
-      return stored.map((note) => normalizeNote(note));
+      return sortNotesByUpdatedAt(stored.map((note) => normalizeNote(note)));
     }
     return normalizedMockNotes;
   });

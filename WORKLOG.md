@@ -1,6 +1,12 @@
 # 작업 로그
 
 > 최신 작업을 문서 상단에 추가해주세요.
+## 2025-10-22 — 노트 상세 표기 및 목록 프리뷰 개선
+- NoteDetail에서 작성/수정 시간이 동일한 경우 수정 시각 표기를 숨겨 중복 정보를 제거했고, NoteList 본문 프리뷰에서는 DOMPurify 옵션으로 `<img>` 태그를 제외해 섬네일과 본문 이미지가 겹쳐 보이지 않도록 조정했습니다.
+- 인라인 이미지가 제거된 노트 프리뷰에는 `이미지` 배지를 추가해 내용에 사진이 포함된 메모임을 한눈에 확인할 수 있게 했습니다.
+- 초기 로드 시에도 `sortNotesByUpdatedAt`를 적용해 로컬 저장 메모가 최신순으로 정렬되도록 맞췄습니다.
+- 확인: `npx tsc --noEmit` 통과, `npm run test`, `npm run build`, `npm run lint`는 WSL의 `@rollup/rollup-linux-x64-gnu` 및 `@typescript-eslint/parser` 미설치로 계속 실패.
+
 ## 2025-10-22 — 메모 유틸 모듈화 및 품질 보강
 - `src/lib/notes.ts`에서 메모 정규화·정렬·중복 첨부 제거 유틸을 모듈화하고, `App.tsx`는 해당 유틸을 사용해 원격/로컬 데이터를 일관된 정렬로 노출하도록 개선.
 - 첨부파일 용량 출력을 `formatBytes`(신규)로 통일하고, NoteDetail/NoteComposer UI의 빈 카테고리 표기와 첨부 출력 품질을 손봤습니다.

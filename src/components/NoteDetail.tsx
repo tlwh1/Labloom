@@ -51,10 +51,12 @@ export function NoteDetail({ note, onEdit, onDelete, disableActions = false, isD
                 작성:{" "}
                 <time dateTime={note.createdAt}>{dayjs(note.createdAt).format("YYYY.MM.DD HH:mm")}</time>
               </p>
-              <p>
-                수정:{" "}
-                <time dateTime={note.updatedAt}>{dayjs(note.updatedAt).format("YYYY.MM.DD HH:mm")}</time>
-              </p>
+              {!dayjs(note.createdAt).isSame(note.updatedAt) && (
+                <p>
+                  수정:{" "}
+                  <time dateTime={note.updatedAt}>{dayjs(note.updatedAt).format("YYYY.MM.DD HH:mm")}</time>
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <button

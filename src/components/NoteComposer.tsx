@@ -129,42 +129,48 @@ export function NoteComposer({
     try {
       const processed = await Promise.all(
         allowedFiles.map(async (file) => {
-          const base: NoteAttachment = {
-            id: createRandomId("att"),
-            name: file.name,
-            size: file.size,
-            type: file.type || "application/octet-stream",
-            previewUrl: undefined,
-            dataUrl: undefined
-          };
+          try {
+            const base: NoteAttachment = {
+              id: createRandomId("att"),
+              name: file.name,
+              size: file.size,
+              type: file.type || "application/octet-stream",
+              previewUrl: undefined,
+              dataUrl: undefined
+            };
 
-          if (file.type.startsWith("image/")) {
-            const resized = await resizeImageFile(file, {
-              maxWidth: 1600,
-              maxHeight: 1600,
-              quality: 0.82
-            });
+            if (file.type.startsWith("image/")) {
+              const resized = await resizeImageFile(file, {
+                maxWidth: 1600,
+                maxHeight: 1600,
+                quality: 0.82
+              });
+              return {
+                ...base,
+                size: resized.size,
+                type: resized.mimeType,
+                previewUrl: resized.dataUrl,
+                dataUrl: resized.dataUrl
+              };
+            }
+
+            const dataUrl = await fileToDataUrl(file);
             return {
               ...base,
-              size: resized.size,
-              type: resized.mimeType,
-              previewUrl: resized.dataUrl,
-              dataUrl: resized.dataUrl
+              size: estimateDataUrlSize(dataUrl) || file.size,
+              previewUrl: dataUrl,
+              dataUrl
             };
+          } catch (error) {
+            console.warn(`"${file.name}" 파일을 처리하지 못했습니다.`, error);
+            return null;
           }
-
-          const dataUrl = await fileToDataUrl(file);
-          return {
-            ...base,
-            size: estimateDataUrlSize(dataUrl) || file.size,
-            previewUrl: dataUrl,
-            dataUrl
-          };
         })
       );
 
       const nextAttachments = [...draft.attachments];
       processed.forEach((attachment) => {
+        if (!attachment) return;
         if (!nextAttachments.some((existing) => existing.dataUrl === attachment.dataUrl)) {
           nextAttachments.push(attachment);
         }
@@ -228,31 +234,35 @@ export function NoteComposer({
 
         for (let index = 0; index < imageFiles.length; index += 1) {
           const file = imageFiles[index];
-          const resized = await resizeImageFile(file, {
-            maxWidth: 1600,
-            maxHeight: 1600,
-            quality: 0.8
-          });
-          const label = file.name || `clipboard-image-${Date.now()}-${index + 1}`;
+          try {
+            const resized = await resizeImageFile(file, {
+              maxWidth: 1600,
+              maxHeight: 1600,
+              quality: 0.8
+            });
+            const label = file.name || `clipboard-image-${Date.now()}-${index + 1}`;
 
-          const img = document.createElement("img");
-          img.src = resized.dataUrl;
-          img.alt = label;
-          img.style.maxWidth = "100%";
-          img.style.borderRadius = "0.75rem";
-          img.style.display = "block";
-          img.style.margin = "0.5rem 0";
-          fragment.appendChild(img);
+            const img = document.createElement("img");
+            img.src = resized.dataUrl;
+            img.alt = label;
+            img.style.maxWidth = "100%";
+            img.style.borderRadius = "0.75rem";
+            img.style.display = "block";
+            img.style.margin = "0.5rem 0";
+            fragment.appendChild(img);
 
-          const attachment: NoteAttachment = {
-            id: createRandomId("att"),
-            name: label,
-            size: resized.size,
-            type: resized.mimeType,
-            previewUrl: resized.dataUrl,
-            dataUrl: resized.dataUrl
-          };
-          addedAttachments.push(attachment);
+            const attachment: NoteAttachment = {
+              id: createRandomId("att"),
+              name: label,
+              size: resized.size,
+              type: resized.mimeType,
+              previewUrl: resized.dataUrl,
+              dataUrl: resized.dataUrl
+            };
+            addedAttachments.push(attachment);
+          } catch (error) {
+            console.warn(`클립보드 이미지 처리 중 오류가 발생했습니다.`, error);
+          }
         }
 
         range.insertNode(fragment);
@@ -360,7 +370,6 @@ export function NoteComposer({
           role="textbox"
           aria-multiline="true"
           aria-label="본문 편집기"
-          dangerouslySetInnerHTML={{ __html: renderedHtml }}
         />
       </section>
 

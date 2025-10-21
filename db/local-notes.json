@@ -5,8 +5,14 @@
     "content": "### 인터랙션 체크리스트\n- 햅틱 피드백 여부 확인\n- 접근성 라벨링 (VoiceOver)\n- 라이트/다크 모드 대비 비율\n\n> 다음 스프린트까지 상기 항목 점검하기",
     "category": "리서치",
     "tags": [
-      { "id": "ux", "label": "UX" },
-      { "id": "mobile", "label": "Mobile" }
+      {
+        "id": "ux",
+        "label": "UX"
+      },
+      {
+        "id": "mobile",
+        "label": "Mobile"
+      }
     ],
     "attachments": [
       {
@@ -25,8 +31,14 @@
     "content": "- 대표 프로젝트 3개 선정\n- KPI 전후 비교 그래프 준비\n- 사용자 인터뷰 인용구 5개 추출\n\n**Todo**: Cloudinary 업로드 Flow 정리",
     "category": "브랜딩",
     "tags": [
-      { "id": "branding", "label": "브랜딩" },
-      { "id": "netlify", "label": "Netlify" }
+      {
+        "id": "branding",
+        "label": "브랜딩"
+      },
+      {
+        "id": "netlify",
+        "label": "Netlify"
+      }
     ],
     "attachments": [
       {
@@ -52,11 +64,36 @@
     "content": "```sql\nCREATE TABLE notes (\n  id uuid PRIMARY KEY,\n  title text NOT NULL,\n  content text,\n  category text,\n  tags text[],\n  created_at timestamptz DEFAULT now(),\n  updated_at timestamptz DEFAULT now()\n);\n```",
     "category": "백엔드",
     "tags": [
-      { "id": "postgres", "label": "PostgreSQL" },
-      { "id": "schema", "label": "Schema" }
+      {
+        "id": "postgres",
+        "label": "PostgreSQL"
+      },
+      {
+        "id": "schema",
+        "label": "Schema"
+      }
     ],
     "attachments": [],
     "createdAt": "2025-10-13T09:00:00.000Z",
     "updatedAt": "2025-10-20T09:00:00.000Z"
+  },
+  {
+    "id": "375e2e65-8482-4140-863c-db594a07daa1",
+    "title": "asdfasd",
+    "content": "asdfasf\n\n![image.png](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAS4AAADjCAYAAAA7QfmdAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAQQSURBVHhe7dpBbuJIGIBRmAv0qtWrucAsc7WcIxfLpXo2I42IwLgM2PV13tsZUXj3qeqnzj9+/fP79Ey/T6fT+euHS87/Lbrv759/XTy/v79fPC/5+Pi4eH57ezt9fn5efAY0XJZgZUAAjvQlXJdbpX0yts9bgD/Hl3A9yXCLhs6WwDd3JVz/V2dTTjYtAljvSrgA5nYlXEfMuQDWuxKuI8gjsN6NcD045zppEfA6N8L1oE2127QI+IZuhMucC5jXjXABzGshXE+YcwG8wEK4Lm06Lg4tGvoy8I0thOvBfdaDywFuWQgXwJxWh2ufDdQ+bwHa7oTL3AmYz51wAcxnKFz2X8AM7oTLzAmYz51wXRrO2Nk2DXi+oXABzGBFuGyZgLmsCNeeRBK4bzhc0gIcbThcAEdbEa7h/xIBXmpFuPYmlMCyCcMFsGw4XMP7IZdQgScbDhfA0YQLyFkZLmc9YB4rwwUwD+ECcjaFy8ERONKmcL2WLALLVoZr+PbWg/Z+H1CyMlwA8xAuIEe4gBzhAnI2hcvoHDjSpnABHEm4gJyBcLkYCsxhIFwAcxAuIEe4gBzhAnKEC8gRLiBnn3C5ag880T7hOrkGBjzPfuECeBLhAnI2h+u1J7/X/jrQtjlcr2eiD1w3cbgArhMuIEe4gBzhAnIGwmVYDsxhIFwAcxAuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuICcfwHoAyc8evnAnAAAAABJRU5ErkJggg==)",
+    "category": "",
+    "tags": [],
+    "attachments": [
+      {
+        "id": "att-6da4d29b-8296-409d-9029-0d71d2200597",
+        "name": "image.png",
+        "size": 1147,
+        "type": "image/png",
+        "previewUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAS4AAADjCAYAAAA7QfmdAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAQQSURBVHhe7dpBbuJIGIBRmAv0qtWrucAsc7WcIxfLpXo2I42IwLgM2PV13tsZUXj3qeqnzj9+/fP79Ey/T6fT+euHS87/Lbrv759/XTy/v79fPC/5+Pi4eH57ezt9fn5efAY0XJZgZUAAjvQlXJdbpX0yts9bgD/Hl3A9yXCLhs6WwDd3JVz/V2dTTjYtAljvSrgA5nYlXEfMuQDWuxKuI8gjsN6NcD045zppEfA6N8L1oE2127QI+IZuhMucC5jXjXABzGshXE+YcwG8wEK4Lm06Lg4tGvoy8I0thOvBfdaDywFuWQgXwJxWh2ufDdQ+bwHa7oTL3AmYz51wAcxnKFz2X8AM7oTLzAmYz51wXRrO2Nk2DXi+oXABzGBFuGyZgLmsCNeeRBK4bzhc0gIcbThcAEdbEa7h/xIBXmpFuPYmlMCyCcMFsGw4XMP7IZdQgScbDhfA0YQLyFkZLmc9YB4rwwUwD+ECcjaFy8ERONKmcL2WLALLVoZr+PbWg/Z+H1CyMlwA8xAuIEe4gBzhAnI2hcvoHDjSpnABHEm4gJyBcLkYCsxhIFwAcxAuIEe4gBzhAnKEC8gRLiBnn3C5ag880T7hOrkGBjzPfuECeBLhAnI2h+u1J7/X/jrQtjlcr2eiD1w3cbgArhMuIEe4gBzhAnIGwmVYDsxhIFwAcxAuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuICcfwHoAyc8evnAnAAAAABJRU5ErkJggg==",
+        "dataUrl": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAS4AAADjCAYAAAA7QfmdAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAQQSURBVHhe7dpBbuJIGIBRmAv0qtWrucAsc7WcIxfLpXo2I42IwLgM2PV13tsZUXj3qeqnzj9+/fP79Ey/T6fT+euHS87/Lbrv759/XTy/v79fPC/5+Pi4eH57ezt9fn5efAY0XJZgZUAAjvQlXJdbpX0yts9bgD/Hl3A9yXCLhs6WwDd3JVz/V2dTTjYtAljvSrgA5nYlXEfMuQDWuxKuI8gjsN6NcD045zppEfA6N8L1oE2127QI+IZuhMucC5jXjXABzGshXE+YcwG8wEK4Lm06Lg4tGvoy8I0thOvBfdaDywFuWQgXwJxWh2ufDdQ+bwHa7oTL3AmYz51wAcxnKFz2X8AM7oTLzAmYz51wXRrO2Nk2DXi+oXABzGBFuGyZgLmsCNeeRBK4bzhc0gIcbThcAEdbEa7h/xIBXmpFuPYmlMCyCcMFsGw4XMP7IZdQgScbDhfA0YQLyFkZLmc9YB4rwwUwD+ECcjaFy8ERONKmcL2WLALLVoZr+PbWg/Z+H1CyMlwA8xAuIEe4gBzhAnI2hcvoHDjSpnABHEm4gJyBcLkYCsxhIFwAcxAuIEe4gBzhAnKEC8gRLiBnn3C5ag880T7hOrkGBjzPfuECeBLhAnI2h+u1J7/X/jrQtjlcr2eiD1w3cbgArhMuIEe4gBzhAnIGwmVYDsxhIFwAcxAuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuIAc4QJyhAvIES4gR7iAHOECcoQLyBEuIEe4gBzhAnKEC8gRLiBHuICcfwHoAyc8evnAnAAAAABJRU5ErkJggg=="
+      }
+    ],
+    "createdAt": "2025-10-21T04:09:05.877Z",
+    "updatedAt": "2025-10-21T04:09:05.877Z"
   }
 ]

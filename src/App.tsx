@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import clsx from "clsx";
 import { SidebarFilters } from "./components/SidebarFilters";
 import { NoteList } from "./components/NoteList";
 import { NoteDetail } from "./components/NoteDetail";

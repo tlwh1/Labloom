@@ -99,6 +99,8 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [remoteHash, setRemoteHash] = useState<string | null>(null);
+  const [localHash, setLocalHash] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [modeMessage, setModeMessage] = useState<string>("");
   const [composerDraft, setComposerDraft] = useState<NoteComposerDraft | null>(null);
@@ -120,6 +122,10 @@ export default function App() {
         : "현재 로컬 데이터 모드입니다. Netlify Functions가 비활성 상태입니다."
     );
   }, [remoteEnabled]);
+
+  useEffect(() => {
+    setLocalHash(JSON.stringify(allNotes));
+  }, [allNotes]);
 
   const filteredNotes = useMemo(
     () =>
@@ -143,6 +149,7 @@ export default function App() {
         setSelectedNoteId(normalized[0]?.id ?? null);
         setLoadError(null);
         setModeMessage("현재 로컬 데이터 모드입니다. Netlify Functions가 비활성 상태입니다.");
+        setLocalHash(JSON.stringify(normalized));
         return;
       }
 
@@ -156,16 +163,22 @@ export default function App() {
           setSelectedNoteId(normalizedRemote[0]?.id ?? null);
           setLoadError(null);
           setModeMessage("Netlify Functions에 연결된 원격 데이터 모드입니다.");
+          const hash = JSON.stringify(normalizedRemote);
+          setRemoteHash(hash);
+          setLocalHash(hash);
         } else {
           setAllNotes([]);
           saveLocalNotes([]);
           setLoadError("저장된 메모가 없습니다. 새 메모를 생성해보세요.");
           setSelectedNoteId(null);
           setModeMessage("원격 데이터가 비어 있어 로컬 상태로 유지합니다.");
+          setRemoteHash("empty");
+          setLocalHash("empty");
         }
         setRemoteEnabled(true);
       } catch (error) {
         setRemoteEnabled(false);
+        setRemoteHash(null);
         const stored = loadLocalNotes();
         const normalized = stored.length > 0 ? stored.map((note) => normalizeNote(note)) : normalizedMockNotes;
         setAllNotes(normalized);
@@ -173,6 +186,7 @@ export default function App() {
         setLoadError(null);
         setModeMessage("Netlify Functions에 연결하지 못해 로컬 데이터 모드로 전환했습니다.");
         setSelectedNoteId(normalized[0]?.id ?? null);
+        setLocalHash(JSON.stringify(normalized));
       } finally {
         setIsSyncing(false);
       }
@@ -249,13 +263,17 @@ export default function App() {
       console.warn("메모 삭제 중 문제가 발생했습니다. 로컬 데이터에서 제거합니다.", error);
       setRemoteEnabled(false);
     } finally {
-      setAllNotes((prev) => {
-        const next = prev.filter((note) => note.id !== noteToDelete.id);
-        saveLocalNotes(next);
-        const fallbackId = next[0]?.id ?? null;
-        setSelectedNoteId(fallbackId);
-        return next;
-      });
+        setAllNotes((prev) => {
+          const next = prev.filter((note) => note.id !== noteToDelete.id);
+          saveLocalNotes(next);
+          setLocalHash(JSON.stringify(next));
+          if (remoteEnabled && !remoteError) {
+            setRemoteHash(JSON.stringify(next));
+          }
+          const fallbackId = next[0]?.id ?? null;
+          setSelectedNoteId(fallbackId);
+          return next;
+        });
       setComposerDraft(null);
       setEditingNoteId(null);
       setComposerMode("create");
@@ -292,8 +310,13 @@ export default function App() {
     setEditingNoteId(null);
   };
 
-  const handleManualSync = () => {
-    void fetchNotes({ forceRemote: true });
+  const canSync = remoteEnabled && remoteHash !== null && localHash !== null && remoteHash !== localHash;
+  const isRemoteSynced = remoteEnabled && remoteHash !== null && localHash === remoteHash;
+
+  const handleSyncIndicatorClick = () => {
+    if (canSync && !isSyncing) {
+      void fetchNotes({ forceRemote: true });
+    }
   };
 
   const handleSelectNote = useCallback(
@@ -369,6 +392,10 @@ export default function App() {
         setAllNotes((prev) => {
           const next = [finalNote, ...prev.filter((note) => note.id !== finalNote.id)];
           saveLocalNotes(next);
+          setLocalHash(JSON.stringify(next));
+          if (remoteEnabled && updatedNote) {
+            setRemoteHash(JSON.stringify(next));
+          }
           return next;
         });
         setSelectedNoteId(finalNote.id);
@@ -393,6 +420,7 @@ export default function App() {
         setAllNotes((prev) => {
           const next = [fallbackNote, ...prev.filter((note) => note.id !== fallbackNote.id)];
           saveLocalNotes(next);
+          setLocalHash(JSON.stringify(next));
           return next;
         });
         setSelectedNoteId(fallbackNote.id);
@@ -434,6 +462,11 @@ export default function App() {
       setAllNotes((prev) => {
         const next = [finalNote, ...prev.filter((note) => note.id !== finalNote.id)];
         saveLocalNotes(next);
+        const hash = JSON.stringify(next);
+        setLocalHash(hash);
+        if (remoteEnabled && createdNote) {
+          setRemoteHash(hash);
+        }
         return next;
       });
       setSelectedNoteId(finalNote.id);
@@ -454,6 +487,7 @@ export default function App() {
       setAllNotes((prev) => {
         const next = [fallbackNote, ...prev.filter((note) => note.id !== fallbackNote.id)];
         saveLocalNotes(next);
+        setLocalHash(JSON.stringify(next));
         return next;
       });
       setSelectedNoteId(fallbackNote.id);
@@ -498,10 +532,43 @@ export default function App() {
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
-            onClick={handleManualSync}
-            className="rounded-full border border-[var(--color-border)] bg-white/70 dark:bg-slate-800/40 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-200 transition hover:bg-white"
+            onClick={handleSyncIndicatorClick}
+            disabled={!canSync || isSyncing}
+            className={clsx(
+              "flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition",
+              canSync && !isSyncing
+                ? "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200"
+                : isRemoteSynced
+                  ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                  : remoteEnabled
+                    ? "bg-blue-100 text-blue-700 border-blue-200"
+                    : "bg-slate-200 text-slate-600 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-600",
+              (!canSync || isSyncing) && "cursor-default"
+            )}
           >
-            {isSyncing ? "동기화 중..." : "수동 동기화"}
+            <span
+              className={clsx(
+                "h-2 w-2 rounded-full",
+                canSync && !isSyncing
+                  ? "bg-amber-500 animate-pulse"
+                  : isRemoteSynced
+                    ? "bg-emerald-500"
+                    : remoteEnabled
+                      ? "bg-blue-500 animate-pulse"
+                      : "bg-slate-400"
+              )}
+            />
+            <span>
+              {remoteEnabled
+                ? isSyncing
+                  ? "원격 동기화 중..."
+                  : canSync
+                    ? "원격과 차이 감지 · 클릭해 최신화"
+                    : isRemoteSynced
+                      ? "원격 데이터와 동기화 완료"
+                      : "원격 상태 확인 중"
+                : "로컬 데이터 전용 모드"}
+            </span>
           </button>
           <button
             type="button"

@@ -20,6 +20,90 @@ import dayjs from "../lib/dayjs";
 import { dedupeAttachments } from "../lib/notes";
 import { formatBytes } from "../lib/format";
 
+const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_TOTAL_ATTACHMENT_BYTES = 8 * 1024 * 1024; // 총 8MB
+const MIN_IMAGE_TARGET_BYTES = 200 * 1024;
+const DEFAULT_IMAGE_TARGET_BYTES = 1.1 * 1024 * 1024;
+
+const getAttachmentSize = (attachment: NoteAttachment) =>
+  typeof attachment.size === "number" && Number.isFinite(attachment.size) ? attachment.size : 0;
+
+const calculateTotalSize = (attachments: NoteAttachment[]) =>
+  attachments.reduce((sum, attachment) => sum + getAttachmentSize(attachment), 0);
+
+async function buildAttachmentWithinBudget(
+  file: File,
+  availableBudget: number,
+  remainingCount: number
+): Promise<NoteAttachment | null> {
+  if (availableBudget <= 0) {
+    return null;
+  }
+
+  const base: NoteAttachment = {
+    id: createRandomId("att"),
+    name: file.name,
+    size: file.size,
+    type: file.type || "application/octet-stream",
+    previewUrl: undefined,
+    dataUrl: undefined
+  };
+
+  const isImage = file.type.startsWith("image/");
+
+  if (isImage) {
+    const normalizedRemaining = Math.max(remainingCount, 1);
+    const dynamicTarget = Math.max(
+      MIN_IMAGE_TARGET_BYTES,
+      Math.min(DEFAULT_IMAGE_TARGET_BYTES, Math.floor(availableBudget / normalizedRemaining) || availableBudget)
+    );
+    const primaryTarget = Math.min(dynamicTarget, availableBudget);
+
+    const resizeWithTarget = (targetBytes: number, quality: number, maxDimension: number) =>
+      resizeImageFile(file, {
+        maxWidth: maxDimension,
+        maxHeight: maxDimension,
+        quality,
+        maxBytes: Math.max(MIN_IMAGE_TARGET_BYTES, Math.floor(targetBytes)),
+        minQuality: 0.4
+      });
+
+    let resized = await resizeWithTarget(primaryTarget, 0.8, 1600);
+
+    if (resized.size > availableBudget) {
+      if (availableBudget < MIN_IMAGE_TARGET_BYTES) {
+        return null;
+      }
+      resized = await resizeWithTarget(Math.min(availableBudget, primaryTarget * 0.75), 0.7, 1400);
+      if (resized.size > availableBudget) {
+        return null;
+      }
+    }
+
+    return {
+      ...base,
+      size: resized.size,
+      type: resized.mimeType,
+      previewUrl: resized.dataUrl,
+      dataUrl: resized.dataUrl
+    };
+  }
+
+  const dataUrl = await fileToDataUrl(file);
+  const estimatedSize = estimateDataUrlSize(dataUrl) || file.size;
+
+  if (estimatedSize > availableBudget) {
+    return null;
+  }
+
+  return {
+    ...base,
+    size: estimatedSize,
+    previewUrl: dataUrl,
+    dataUrl
+  };
+}
+
 export type NoteComposerDraft = {
   title: string;
   category: string;
@@ -50,7 +134,6 @@ export function NoteComposer({
   const previewTags = useMemo(() => parseTagInput(draft.tagsInput), [draft.tagsInput]);
   const [isProcessingAttachments, setIsProcessingAttachments] = useState(false);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
-  const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024; // 10MB
   const isEditMode = mode === "edit";
   const editorRef = useRef<HTMLDivElement | null>(null);
 
@@ -127,54 +210,58 @@ export function NoteComposer({
       return;
     }
 
+    const existingSize = calculateTotalSize(draft.attachments);
+    let remainingBudget = MAX_TOTAL_ATTACHMENT_BYTES - existingSize;
+
+    if (remainingBudget <= MIN_IMAGE_TARGET_BYTES) {
+      setAttachmentError("전체 첨부 용량은 최대 8MB입니다. 기존 첨부를 일부 정리한 뒤 다시 시도해주세요.");
+      event.target.value = "";
+      return;
+    }
+
     setIsProcessingAttachments(true);
 
     try {
-      const processed = await Promise.all<NoteAttachment | null>(
-        allowedFiles.map(async (file) => {
-          try {
-            const base: NoteAttachment = {
-              id: createRandomId("att"),
-              name: file.name,
-              size: file.size,
-              type: file.type || "application/octet-stream",
-              previewUrl: undefined,
-              dataUrl: undefined
-            };
+      const added: NoteAttachment[] = [];
+      let skippedCount = 0;
 
-            if (file.type.startsWith("image/")) {
-              const resized = await resizeImageFile(file, {
-                maxWidth: 1600,
-                maxHeight: 1600,
-                quality: 0.82
-              });
-              return {
-                ...base,
-                size: resized.size,
-                type: resized.mimeType,
-                previewUrl: resized.dataUrl,
-                dataUrl: resized.dataUrl
-              };
-            }
+      for (let index = 0; index < allowedFiles.length; index += 1) {
+        const file = allowedFiles[index];
+        try {
+          const attachment = await buildAttachmentWithinBudget(
+            file,
+            remainingBudget,
+            allowedFiles.length - index
+          );
 
-            const dataUrl = await fileToDataUrl(file);
-            return {
-              ...base,
-              size: estimateDataUrlSize(dataUrl) || file.size,
-              previewUrl: dataUrl,
-              dataUrl
-            };
-          } catch (error) {
-            console.warn(`"${file.name}" 파일을 처리하지 못했습니다.`, error);
-            return null;
+          if (!attachment) {
+            skippedCount += 1;
+            continue;
           }
-        })
-      );
 
-      const validAttachments = processed.filter((attachment): attachment is NoteAttachment => Boolean(attachment));
-      const nextAttachments = dedupeAttachments(draft.attachments, validAttachments);
+          added.push(attachment);
+          remainingBudget -= attachment.size;
 
-      syncMarkdownFromEditor(nextAttachments);
+          if (remainingBudget <= MIN_IMAGE_TARGET_BYTES) {
+            break;
+          }
+        } catch (error) {
+          skippedCount += 1;
+          console.warn(`"${file.name}" 파일을 처리하지 못했습니다.`, error);
+        }
+      }
+
+      if (added.length > 0) {
+        const nextAttachments = dedupeAttachments(draft.attachments, added);
+        syncMarkdownFromEditor(nextAttachments);
+        setAttachmentError(
+          skippedCount > 0
+            ? "일부 파일은 8MB 첨부 한도를 넘어 제외했습니다."
+            : null
+        );
+      } else if (skippedCount > 0) {
+        setAttachmentError("첨부 가능 용량(8MB)을 초과해 파일을 추가하지 못했습니다.");
+      }
     } catch (attachmentError) {
       console.error("첨부파일을 처리하지 못했습니다.", attachmentError);
     } finally {
@@ -229,21 +316,37 @@ export function NoteComposer({
         }
 
         const addedAttachments: NoteAttachment[] = [];
+        const existingSize = calculateTotalSize(draft.attachments);
+        let remainingBudget = MAX_TOTAL_ATTACHMENT_BYTES - existingSize;
+
+        if (remainingBudget <= MIN_IMAGE_TARGET_BYTES) {
+          setAttachmentError("전체 첨부 용량은 최대 8MB입니다. 기존 첨부를 정리한 뒤 다시 시도해주세요.");
+          setIsProcessingAttachments(false);
+          return;
+        }
+
+        let skippedCount = 0;
 
         for (let index = 0; index < imageFiles.length; index += 1) {
           const file = imageFiles[index];
           try {
-            const resized = await resizeImageFile(file, {
-              maxWidth: 1600,
-              maxHeight: 1600,
-              quality: 0.8
-            });
+            const attachment = await buildAttachmentWithinBudget(
+              file,
+              remainingBudget,
+              imageFiles.length - index
+            );
+
+            if (!attachment) {
+              skippedCount += 1;
+              continue;
+            }
+
             const timestamp = dayjs().format("YYYYMMDD-HHmmss");
-            const extension = file.name?.includes(".") ? file.name.split(".").pop() : resized.mimeType.split("/")[1];
+            const extension = file.name?.includes(".") ? file.name.split(".").pop() : attachment.type.split("/")[1];
             const label = `clipboard-${timestamp}-${index + 1}.${extension ?? "png"}`;
 
             const img = document.createElement("img");
-            img.src = resized.dataUrl;
+            img.src = attachment.previewUrl ?? attachment.dataUrl ?? "";
             img.alt = label;
             img.style.maxWidth = "100%";
             img.style.borderRadius = "0.75rem";
@@ -251,16 +354,17 @@ export function NoteComposer({
             img.style.margin = "0.5rem 0";
             fragment.appendChild(img);
 
-            const attachment: NoteAttachment = {
-              id: createRandomId("att"),
-              name: label,
-              size: resized.size,
-              type: resized.mimeType,
-              previewUrl: resized.dataUrl,
-              dataUrl: resized.dataUrl
-            };
-            addedAttachments.push(attachment);
+            addedAttachments.push({
+              ...attachment,
+              name: label
+            });
+            remainingBudget -= attachment.size;
+
+            if (remainingBudget <= MIN_IMAGE_TARGET_BYTES) {
+              break;
+            }
           } catch (error) {
+            skippedCount += 1;
             console.warn(`클립보드 이미지 처리 중 오류가 발생했습니다.`, error);
           }
         }
@@ -273,6 +377,9 @@ export function NoteComposer({
         const nextAttachments = dedupeAttachments(draft.attachments, addedAttachments);
 
         syncMarkdownFromEditor(nextAttachments);
+        setAttachmentError(
+          skippedCount > 0 ? "일부 이미지는 8MB 첨부 한도를 넘어 제외했습니다." : null
+        );
       } finally {
         setIsProcessingAttachments(false);
       }

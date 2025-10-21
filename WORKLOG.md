@@ -6,6 +6,7 @@
 - `src/components/NoteComposer.tsx`, `src/lib/tags.ts` 등 보조 유틸을 생성해 태그 파싱과 ID 생성을 모듈화.
 - Netlify Functions에서 DB URL이 비어 있을 때 `db/local-notes.json` 파일을 활용하는 로컬 스토리지(`netlify/functions/_shared/local-store.ts`)를 추가하고, CRUD 함수 전반에 적용.
 - 원격/로컬 생성 시 `category` 등의 필드를 보정하는 `normalizeNote` 유틸을 적용해 타입 빌드 오류를 해결.
+- 프론트엔드에서 원격 API 실패 시 `localStorage`에 메모를 캐시해 새로고침 후에도 데이터가 유지되도록 보완.
 - 확인: `npm run build` 실행 시 `tsc` 바이너리가 없어 실패(`tsc: not found`)하여 설치 후 재시도가 필요.
 
 ## 2025-10-21 — Netlify Functions & CRUD 기본기

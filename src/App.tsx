@@ -9,6 +9,7 @@ import { createNote, listNotes } from "./lib/api";
 import type { NoteInput } from "./lib/api";
 import { parseTagInput } from "./lib/tags";
 import { createRandomId } from "./lib/id";
+import { loadLocalNotes, saveLocalNotes } from "./lib/localNotes";
 
 function filterNotes(
   notes: Note[],
@@ -55,9 +56,19 @@ function normalizeNote(note: NormalizableNote): Note {
   };
 }
 
+const normalizedMockNotes = mockNotes.map((note) => normalizeNote(note));
+
 export default function App() {
-  const [allNotes, setAllNotes] = useState<Note[]>(() => mockNotes.map(normalizeNote));
-  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(mockNotes[0]?.id ?? null);
+  const [initialNotes] = useState<Note[]>(() => {
+    const stored = loadLocalNotes();
+    if (stored.length > 0) {
+      return stored.map((note) => normalizeNote(note));
+    }
+    return normalizedMockNotes;
+  });
+
+  const [allNotes, setAllNotes] = useState<Note[]>(initialNotes);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(initialNotes[0]?.id ?? null);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -66,6 +77,11 @@ export default function App() {
   const [composerDraft, setComposerDraft] = useState<NoteComposerDraft | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [composerError, setComposerError] = useState<string | null>(null);
+
+  const defaultRemotePreference =
+    import.meta.env.VITE_USE_REMOTE_API === "true" ||
+    (import.meta.env.DEV && import.meta.env.VITE_USE_REMOTE_API !== "false");
+  const [remoteEnabled, setRemoteEnabled] = useState(defaultRemotePreference);
 
   const filteredNotes = useMemo(
     () =>
@@ -77,42 +93,53 @@ export default function App() {
     [allNotes, search, selectedCategory, selectedTags]
   );
 
-  const useRemoteApi =
-    import.meta.env.VITE_USE_REMOTE_API === "true" ||
-    (import.meta.env.DEV && import.meta.env.VITE_USE_REMOTE_API !== "false");
+  const fetchNotes = useCallback(
+    async ({ forceRemote = false }: { forceRemote?: boolean } = {}) => {
+      const shouldUseRemote = forceRemote || remoteEnabled;
 
-  const fetchNotes = useCallback(async () => {
-    if (!useRemoteApi) {
-      const normalizedMock = mockNotes.map(normalizeNote);
-      setAllNotes(normalizedMock);
-      setSelectedNoteId(normalizedMock[0]?.id ?? null);
-      setLoadError("Netlify Functions를 실행하기 전이라 목업 데이터를 사용합니다.");
-      return;
-    }
-
-    setIsSyncing(true);
-    try {
-      const notes = await listNotes();
-      if (Array.isArray(notes) && notes.length > 0) {
-        const normalizedRemote = notes.map(normalizeNote);
-        setAllNotes(normalizedRemote);
-        setLoadError(null);
-        setSelectedNoteId(normalizedRemote[0]?.id ?? null);
-      } else {
-        setAllNotes([]);
-        setLoadError("저장된 메모가 없습니다. 새 메모를 생성해보세요.");
-        setSelectedNoteId(null);
+      if (!shouldUseRemote) {
+        const stored = loadLocalNotes();
+        const normalized = stored.length > 0 ? stored.map((note) => normalizeNote(note)) : normalizedMockNotes;
+        setAllNotes(normalized);
+        saveLocalNotes(normalized);
+        setSelectedNoteId(normalized[0]?.id ?? null);
+        if (!forceRemote) {
+          setLoadError("Netlify Functions를 실행하기 전이라 로컬 데이터를 사용합니다.");
+        }
+        return;
       }
-    } catch (error) {
-      console.warn("원격 메모를 불러오지 못했습니다. mock 데이터로 대체합니다.", error);
-      const normalizedMock = mockNotes.map(normalizeNote);
-      setAllNotes(normalizedMock);
-      setLoadError("Netlify Functions 또는 데이터베이스 연결을 확인하기 전까지는 목업 데이터를 사용합니다.");
-      setSelectedNoteId(normalizedMock[0]?.id ?? null);
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [useRemoteApi]);
+
+      setIsSyncing(true);
+      try {
+        const notes = await listNotes();
+        if (Array.isArray(notes) && notes.length > 0) {
+          const normalizedRemote = notes.map(normalizeNote);
+          setAllNotes(normalizedRemote);
+          saveLocalNotes(normalizedRemote);
+          setSelectedNoteId(normalizedRemote[0]?.id ?? null);
+          setLoadError(null);
+        } else {
+          setAllNotes([]);
+          saveLocalNotes([]);
+          setLoadError("저장된 메모가 없습니다. 새 메모를 생성해보세요.");
+          setSelectedNoteId(null);
+        }
+        setRemoteEnabled(true);
+      } catch (error) {
+        console.warn("원격 메모를 불러오지 못했습니다. 로컬 데이터로 대체합니다.", error);
+        setRemoteEnabled(false);
+        const stored = loadLocalNotes();
+        const normalized = stored.length > 0 ? stored.map((note) => normalizeNote(note)) : normalizedMockNotes;
+        setAllNotes(normalized);
+        saveLocalNotes(normalized);
+        setLoadError("Netlify Functions 또는 데이터베이스 연결을 확인하기 전까지는 로컬 데이터를 사용합니다.");
+        setSelectedNoteId(normalized[0]?.id ?? null);
+      } finally {
+        setIsSyncing(false);
+      }
+    },
+    [remoteEnabled]
+  );
 
   useEffect(() => {
     fetchNotes();
@@ -157,7 +184,7 @@ export default function App() {
   };
 
   const handleManualSync = () => {
-    void fetchNotes();
+    void fetchNotes({ forceRemote: true });
   };
 
   const handleSelectNote = useCallback(
@@ -200,7 +227,7 @@ export default function App() {
     try {
       let createdNote: Note | null = null;
 
-      if (useRemoteApi) {
+      if (remoteEnabled) {
         const remoteNote = await createNote(payload);
         createdNote = normalizeNote(remoteNote);
       }
@@ -218,16 +245,20 @@ export default function App() {
         }
       );
 
-      setAllNotes((prev) => [finalNote, ...prev.filter((note) => note.id !== finalNote.id)]);
+      setAllNotes((prev) => {
+        const next = [finalNote, ...prev.filter((note) => note.id !== finalNote.id)];
+        saveLocalNotes(next);
+        return next;
+      });
       setSelectedNoteId(finalNote.id);
-
-      if (useRemoteApi && createdNote) {
+      if (remoteEnabled && createdNote) {
         setLoadError(null);
+        setRemoteEnabled(true);
       }
-
       setComposerDraft(null);
     } catch (error) {
       console.warn("메모 생성 중 문제가 발생했습니다. 임시 메모로 대체합니다.", error);
+      setRemoteEnabled(false);
 
       const fallbackNote = normalizeNote({
         ...payload,
@@ -236,14 +267,18 @@ export default function App() {
         updatedAt: nowIso
       });
 
-      setAllNotes((prev) => [fallbackNote, ...prev.filter((note) => note.id !== fallbackNote.id)]);
+      setAllNotes((prev) => {
+        const next = [fallbackNote, ...prev.filter((note) => note.id !== fallbackNote.id)];
+        saveLocalNotes(next);
+        return next;
+      });
       setSelectedNoteId(fallbackNote.id);
       setLoadError("원격 저장에 실패했습니다. 임시로 로컬에 추가했습니다.");
       setComposerDraft(null);
     } finally {
       setIsSaving(false);
     }
-  }, [composerDraft, useRemoteApi]);
+  }, [composerDraft, remoteEnabled]);
 
   return (
     <div className="relative min-h-screen px-6 py-10 md:px-10 bg-[var(--color-background)]">

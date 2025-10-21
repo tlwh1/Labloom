@@ -7,6 +7,7 @@ Personal portfolio site
 - Functions가 로컬에서 실행되고 DB URL이 비어 있으면 `db/local-notes.json` 파일을 자동으로 사용해 CRUD 요청을 처리합니다.
 - `.env.local`에 `VITE_USE_REMOTE_API=false`를 명시하면 함수 호출 없이 mock 데이터만으로 UI를 미리보기 할 수 있습니다.
 - 원격 API 호출이 실패하면 mock 데이터로 자동 전환되며, 저장 실패 시 임시 메모가 로컬 상태에 추가됩니다.
+- Functions를 찾지 못하는 상황이라면 브라우저 `localStorage`에 메모가 캐시되어 새로고침 후에도 작성 내용이 유지됩니다.
 
 ## Create A Note
 

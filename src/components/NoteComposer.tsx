@@ -242,7 +242,8 @@ export function NoteComposer({
               quality: 0.8
             });
             const timestamp = dayjs().format("YYYYMMDD-HHmmss");
-            const label = file.name || `clipboard-image-${timestamp}-${index + 1}`;
+            const extension = file.name?.includes(".") ? file.name.split(".").pop() : resized.mimeType.split("/")[1];
+            const label = `clipboard-${timestamp}-${index + 1}.${extension ?? "png"}`;
 
             const img = document.createElement("img");
             img.src = resized.dataUrl;

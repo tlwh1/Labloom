@@ -289,10 +289,8 @@ export function NoteComposer({
   );
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="glass-panel rounded-3xl p-6 flex flex-col gap-6 xl:max-h-[calc(100vh-6rem)] overflow-y-auto"
-    >
+    <form onSubmit={handleSubmit} className="glass-panel rounded-3xl flex flex-col xl:max-h-[calc(100vh-6rem)]">
+      <div className="p-6 flex-1 overflow-y-auto flex flex-col gap-6">
       <header className="space-y-3">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
@@ -446,29 +444,31 @@ export function NoteComposer({
         {attachmentError && <p className="text-xs text-red-500">{attachmentError}</p>}
       </section>
 
-      <footer className="flex flex-wrap items-center justify-between gap-3">
-        <button
-          type="button"
-          className="rounded-full border border-[var(--color-border)] px-4 py-2 text-sm text-slate-500 hover:bg-white transition"
-          onClick={onCancel}
-          disabled={isSubmitting}
-        >
-          취소
-        </button>
-        <button
-          type="submit"
-          className="rounded-full bg-accent px-6 py-2 text-sm font-semibold text-white shadow hover:shadow-lg transition disabled:cursor-not-allowed disabled:opacity-70"
-          disabled={isSubmitting || isProcessingAttachments}
-        >
-          {isSubmitting
-            ? "저장 중..."
-            : isProcessingAttachments
-              ? "첨부 변환 중"
-              : isEditMode
-                ? "변경 사항 저장"
-                : "메모 저장"}
-        </button>
-      </footer>
+      <div className="sticky bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white/95 to-white/0 dark:from-slate-900 dark:via-slate-900/95 dark:to-slate-900/0">
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+          <button
+            type="button"
+            className="rounded-full border border-[var(--color-border)] px-4 py-2 text-sm text-slate-500 hover:bg-white transition"
+            onClick={onCancel}
+            disabled={isSubmitting}
+          >
+            취소
+          </button>
+          <button
+            type="submit"
+            className="rounded-full bg-accent px-6 py-2 text-sm font-semibold text-white shadow hover:shadow-lg transition disabled:cursor-not-allowed disabled:opacity-70"
+            disabled={isSubmitting || isProcessingAttachments}
+          >
+            {isSubmitting
+              ? "저장 중..."
+              : isProcessingAttachments
+                ? "첨부 변환 중"
+                : isEditMode
+                  ? "변경 사항 저장"
+                  : "메모 저장"}
+          </button>
+        </div>
+      </div>
     </form>
   );
 }

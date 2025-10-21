@@ -99,6 +99,7 @@ export default function App() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [modeMessage, setModeMessage] = useState<string>("");
   const [composerDraft, setComposerDraft] = useState<NoteComposerDraft | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [composerError, setComposerError] = useState<string | null>(null);
@@ -110,6 +111,15 @@ export default function App() {
     import.meta.env.VITE_USE_REMOTE_API === "true" ||
     (import.meta.env.DEV && import.meta.env.VITE_USE_REMOTE_API !== "false");
   const [remoteEnabled, setRemoteEnabled] = useState(defaultRemotePreference);
+
+  useEffect(() => {
+    if (modeMessage.length > 0) return;
+    setModeMessage(
+      remoteEnabled
+        ? "Netlify Functions에 연결된 원격 데이터 모드입니다."
+        : "현재 로컬 데이터 모드입니다. Netlify Functions가 비활성 상태입니다."
+    );
+  }, [remoteEnabled, modeMessage.length]);
 
   const filteredNotes = useMemo(
     () =>
@@ -131,9 +141,8 @@ export default function App() {
         setAllNotes(normalized);
         saveLocalNotes(normalized);
         setSelectedNoteId(normalized[0]?.id ?? null);
-        if (!forceRemote) {
-          setLoadError("Netlify Functions를 실행하기 전이라 로컬 데이터를 사용합니다.");
-        }
+        setLoadError(null);
+        setModeMessage("현재 로컬 데이터 모드입니다. Netlify Functions가 비활성 상태입니다.");
         return;
       }
 
@@ -146,21 +155,26 @@ export default function App() {
           saveLocalNotes(normalizedRemote);
           setSelectedNoteId(normalizedRemote[0]?.id ?? null);
           setLoadError(null);
+          setModeMessage("Netlify Functions에 연결된 원격 데이터 모드입니다.");
         } else {
           setAllNotes([]);
           saveLocalNotes([]);
           setLoadError("저장된 메모가 없습니다. 새 메모를 생성해보세요.");
           setSelectedNoteId(null);
+          setModeMessage("원격 데이터가 비어 있어 로컬 상태로 유지합니다.");
         }
         setRemoteEnabled(true);
       } catch (error) {
-        console.warn("원격 메모를 불러오지 못했습니다. 로컬 데이터로 대체합니다.", error);
+        if (import.meta.env.DEV) {
+          console.info("원격 함수에 연결하지 못했습니다. 로컬 모드로 전환합니다.", error);
+        }
         setRemoteEnabled(false);
         const stored = loadLocalNotes();
         const normalized = stored.length > 0 ? stored.map((note) => normalizeNote(note)) : normalizedMockNotes;
         setAllNotes(normalized);
         saveLocalNotes(normalized);
-        setLoadError("Netlify Functions 또는 데이터베이스 연결을 확인하기 전까지는 로컬 데이터를 사용합니다.");
+        setLoadError(null);
+        setModeMessage("Netlify Functions에 연결하지 못해 로컬 데이터 모드로 전환했습니다.");
         setSelectedNoteId(normalized[0]?.id ?? null);
       } finally {
         setIsSyncing(false);
@@ -231,6 +245,7 @@ export default function App() {
         await deleteNote(noteToDelete.id);
         setRemoteEnabled(true);
         setLoadError(null);
+        setModeMessage("Netlify Functions에 연결된 원격 데이터 모드입니다.");
       }
     } catch (error) {
       remoteError = true;
@@ -252,8 +267,10 @@ export default function App() {
 
       if (remoteError) {
         setLoadError("원격 삭제에 실패했습니다. 로컬 데이터에서 제거했습니다.");
+        setModeMessage("Netlify Functions에 연결하지 못해 로컬 데이터 모드로 전환했습니다.");
       } else if (attemptedRemote) {
         setLoadError(null);
+        setModeMessage("Netlify Functions에 연결된 원격 데이터 모드입니다.");
       }
     }
   }, [selectedNote, selectedNoteId, allNotes, remoteEnabled]);
@@ -336,6 +353,7 @@ export default function App() {
           updatedNote = normalizeNote(remoteNote);
           setRemoteEnabled(true);
           setLoadError(null);
+          setModeMessage("Netlify Functions에 연결된 원격 데이터 모드입니다.");
         }
 
         const finalNote = normalizeNote(
@@ -400,6 +418,7 @@ export default function App() {
         createdNote = normalizeNote(remoteNote);
         setRemoteEnabled(true);
         setLoadError(null);
+        setModeMessage("Netlify Functions에 연결된 원격 데이터 모드입니다.");
       }
 
       const finalNote = normalizeNote(
@@ -460,12 +479,17 @@ export default function App() {
       </div>
 
       <header className="relative mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
+        <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Labloom Notes</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">
             Netlify Functions와 Neon(PostgreSQL)로 확장 가능한 메모 워크플로를 구축하는 중입니다.
             {loadError && <span className="ml-2 text-accent font-medium">{loadError}</span>}
           </p>
+          {modeMessage && (
+            <p className="text-xs font-medium text-slate-400 dark:text-slate-500">
+              {modeMessage}
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <button

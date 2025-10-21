@@ -24,6 +24,9 @@ const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_TOTAL_ATTACHMENT_BYTES = 8 * 1024 * 1024; // 총 8MB
 const MIN_IMAGE_TARGET_BYTES = 160 * 1024;
 const DEFAULT_IMAGE_TARGET_BYTES = 1.1 * 1024 * 1024;
+const BASE_MAX_DIMENSION = 2048;
+const DIMENSION_STEPS = [2048, 1920, 1600, 1440, 1280, 1120, 960, 820, 720, 600, 512, 420, 320];
+const QUALITY_STEPS = [0.82, 0.78, 0.74, 0.7, 0.66, 0.62, 0.58];
 
 const getAttachmentSize = (attachment: NoteAttachment) =>
   typeof attachment.size === "number" && Number.isFinite(attachment.size) ? attachment.size : 0;
@@ -60,63 +63,41 @@ async function buildAttachmentWithinBudget(
         Math.floor(availableBudget / normalizedRemaining) || availableBudget
       )
     );
-    const attemptConfigs = [
-      { dimension: 1600, quality: 0.82, ratio: 1 },
-      { dimension: 1400, quality: 0.75, ratio: 0.8 },
-      { dimension: 1200, quality: 0.7, ratio: 0.65 },
-      { dimension: 960, quality: 0.65, ratio: 0.5 },
-      { dimension: 720, quality: 0.6, ratio: 0.4 },
-      { dimension: 560, quality: 0.55, ratio: 0.35 },
-      { dimension: 420, quality: 0.5, ratio: 0.3 },
-      { dimension: 320, quality: 0.45, ratio: 0.25 }
-    ];
 
-    for (const config of attemptConfigs) {
-      const target = Math.min(
-        availableBudget,
-        Math.max(MIN_IMAGE_TARGET_BYTES, Math.floor(dynamicTarget * config.ratio))
+    for (const dimension of DIMENSION_STEPS) {
+      const dimensionScale = Math.pow(dimension / BASE_MAX_DIMENSION, 2);
+      const dimensionTarget = Math.max(
+        MIN_IMAGE_TARGET_BYTES,
+        Math.floor(dynamicTarget * dimensionScale)
       );
 
-      if (target <= 0) {
-        continue;
-      }
+      for (const quality of QUALITY_STEPS) {
+        const target = Math.min(
+          availableBudget,
+          Math.max(MIN_IMAGE_TARGET_BYTES, dimensionTarget)
+        );
 
-      const resized = await resizeImageFile(file, {
-        maxWidth: config.dimension,
-        maxHeight: config.dimension,
-        quality: config.quality,
-        maxBytes: Math.max(MIN_IMAGE_TARGET_BYTES, target),
-        minQuality: 0.35
-      });
+        if (target <= 0) {
+          continue;
+        }
 
-      if (resized.size <= availableBudget) {
-        return {
-          ...base,
-          size: resized.size,
-          type: resized.mimeType,
-          previewUrl: resized.dataUrl,
-          dataUrl: resized.dataUrl
-        };
-      }
-    }
+        const resized = await resizeImageFile(file, {
+          maxWidth: dimension,
+          maxHeight: dimension,
+          quality,
+          maxBytes: target,
+          minQuality: Math.max(quality - 0.18, 0.5)
+        });
 
-    if (availableBudget >= MIN_IMAGE_TARGET_BYTES / 2) {
-      const resized = await resizeImageFile(file, {
-        maxWidth: 280,
-        maxHeight: 280,
-        quality: 0.38,
-        maxBytes: Math.max(availableBudget, MIN_IMAGE_TARGET_BYTES / 2),
-        minQuality: 0.25
-      });
-
-      if (resized.size <= availableBudget) {
-        return {
-          ...base,
-          size: resized.size,
-          type: resized.mimeType,
-          previewUrl: resized.dataUrl,
-          dataUrl: resized.dataUrl
-        };
+        if (resized.size <= availableBudget) {
+          return {
+            ...base,
+            size: resized.size,
+            type: resized.mimeType,
+            previewUrl: resized.dataUrl,
+            dataUrl: resized.dataUrl
+          };
+        }
       }
     }
 
@@ -290,7 +271,7 @@ export function NoteComposer({
         syncMarkdownFromEditor(nextAttachments);
         setAttachmentError(
           skippedCount > 0
-            ? "일부 파일은 8MB 첨부 한도를 넘어 최소 품질로도 맞출 수 없어 제외했습니다."
+            ? "일부 파일은 8MB 첨부 한도를 맞추기 위해 자동으로 해상도를 조정했지만 제한을 넘겨 제외되었습니다."
             : null
         );
       } else if (skippedCount > 0) {
@@ -413,7 +394,7 @@ export function NoteComposer({
         syncMarkdownFromEditor(nextAttachments);
         setAttachmentError(
           skippedCount > 0
-            ? "일부 이미지는 8MB 첨부 한도를 넘어 최소 품질로도 맞출 수 없어 제외했습니다."
+            ? "일부 이미지는 8MB 첨부 한도를 맞추기 위해 자동으로 해상도를 조정했지만 제한을 넘겨 제외되었습니다."
             : null
         );
       } finally {

@@ -19,6 +19,7 @@
     "netlify-cli": "^23.9.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "turndown": "^7.1.2",
     "zod": "^3.23.8"
   },
   "devDependencies": {

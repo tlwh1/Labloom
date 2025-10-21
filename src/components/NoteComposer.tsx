@@ -3,6 +3,7 @@ import {
   ClipboardEvent,
   FormEvent,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState
@@ -14,6 +15,7 @@ import type { NoteAttachment } from "../types/note";
 import { estimateDataUrlSize, fileToDataUrl, resizeImageFile } from "../lib/images";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
+import TurndownService from "turndown";
 
 export type NoteComposerDraft = {
   title: string;
@@ -47,12 +49,57 @@ export function NoteComposer({
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024; // 10MB
   const isEditMode = mode === "edit";
-  const contentRef = useRef<HTMLTextAreaElement | null>(null);
-  const renderedPreview = useMemo(() => {
+  const editorRef = useRef<HTMLDivElement | null>(null);
+
+  const turndown = useMemo(() => {
+    const service = new TurndownService({
+      headingStyle: "atx",
+      codeBlockStyle: "fenced"
+    });
+    service.addRule("lineBreak", {
+      filter: "br",
+      replacement: () => "\n"
+    });
+    return service;
+  }, []);
+
+  const renderedHtml = useMemo(() => {
     const raw = marked.parse(draft.content, { breaks: true });
     if (typeof raw !== "string") return "";
     return DOMPurify.sanitize(raw);
   }, [draft.content]);
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    if (editor.innerHTML !== renderedHtml) {
+      editor.innerHTML = renderedHtml;
+    }
+  }, [renderedHtml]);
+
+  const syncMarkdownFromEditor = useCallback(
+    (overrideAttachments?: NoteAttachment[]) => {
+      const editor = editorRef.current;
+      if (!editor) {
+        onChange({
+          ...draft,
+          attachments: overrideAttachments ?? draft.attachments
+        });
+        return;
+      }
+
+      const sanitizedHtml = DOMPurify.sanitize(editor.innerHTML, {
+        ADD_ATTR: ["target", "rel", "download"]
+      });
+      const markdown = turndown.turndown(sanitizedHtml);
+      onChange({
+        ...draft,
+        content: markdown,
+        attachments: overrideAttachments ?? draft.attachments
+      });
+    },
+    [draft, onChange, turndown]
+  );
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -116,10 +163,14 @@ export function NoteComposer({
         })
       );
 
-      onChange({
-        ...draft,
-        attachments: [...draft.attachments, ...processed]
+      const nextAttachments = [...draft.attachments];
+      processed.forEach((attachment) => {
+        if (!nextAttachments.some((existing) => existing.dataUrl === attachment.dataUrl)) {
+          nextAttachments.push(attachment);
+        }
       });
+
+      syncMarkdownFromEditor(nextAttachments);
     } catch (attachmentError) {
       console.error("첨부파일을 처리하지 못했습니다.", attachmentError);
     } finally {
@@ -129,16 +180,18 @@ export function NoteComposer({
   };
 
   const handleAttachmentRemove = (id: string | undefined, index: number) => {
-    onChange({
-      ...draft,
-      attachments: draft.attachments.filter((attachment, attachmentIndex) =>
-        id ? attachment.id !== id : attachmentIndex !== index
-      )
-    });
+    const nextAttachments = draft.attachments.filter((attachment, attachmentIndex) =>
+      id ? attachment.id !== id : attachmentIndex !== index
+    );
+    syncMarkdownFromEditor(nextAttachments);
   };
 
+  const handleEditorInput = useCallback(() => {
+    syncMarkdownFromEditor();
+  }, [syncMarkdownFromEditor]);
+
   const handleContentPaste = useCallback(
-    async (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    async (event: ClipboardEvent<HTMLDivElement>) => {
       const items = Array.from(event.clipboardData?.items ?? []);
       const imageFiles = items
         .filter((item) => item.type.startsWith("image/"))
@@ -146,60 +199,80 @@ export function NoteComposer({
         .filter((file): file is File => file !== null);
 
       if (imageFiles.length === 0) {
+        setTimeout(() => {
+          syncMarkdownFromEditor();
+        }, 0);
         return;
       }
 
       event.preventDefault();
+      const editor = editorRef.current;
+      if (!editor) return;
 
-      const textarea = contentRef.current;
-      if (!textarea) return;
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) return;
 
-      const selectionStart = textarea.selectionStart ?? draft.content.length;
-      const selectionEnd = textarea.selectionEnd ?? draft.content.length;
-      const before = draft.content.slice(0, selectionStart);
-      const after = draft.content.slice(selectionEnd);
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
 
-      const processed = await Promise.all(
-        imageFiles.map(async (file, index) => {
+      setIsProcessingAttachments(true);
+
+      try {
+        const fragment = document.createDocumentFragment();
+        const textData = event.clipboardData?.getData("text/plain");
+        if (textData) {
+          fragment.appendChild(document.createTextNode(textData));
+        }
+
+        const addedAttachments: NoteAttachment[] = [];
+
+        for (let index = 0; index < imageFiles.length; index += 1) {
+          const file = imageFiles[index];
           const resized = await resizeImageFile(file, {
             maxWidth: 1600,
             maxHeight: 1600,
             quality: 0.8
           });
           const label = file.name || `clipboard-image-${Date.now()}-${index + 1}`;
-          return `![${label}](${resized.dataUrl})`;
-        })
-      );
 
-      const textData = event.clipboardData?.getData("text/plain") ?? "";
-      const segments = [
-        textData.trim().length > 0 ? textData.trim() : null,
-        ...processed
-      ].filter(Boolean) as string[];
+          const img = document.createElement("img");
+          img.src = resized.dataUrl;
+          img.alt = label;
+          img.style.maxWidth = "100%";
+          img.style.borderRadius = "0.75rem";
+          img.style.display = "block";
+          img.style.margin = "0.5rem 0";
+          fragment.appendChild(img);
 
-      const insertion = segments.join("\n\n");
-
-      const needsLeading = before.length > 0 && !before.endsWith("\n") ? "\n\n" : "";
-      const needsTrailing = after.length > 0 && !after.startsWith("\n") ? "\n\n" : "";
-
-      const nextContent = `${before}${needsLeading}${insertion}${needsTrailing}${after}`;
-
-      onChange({
-        ...draft,
-        content: nextContent
-      });
-
-      requestAnimationFrame(() => {
-        const cursorPosition =
-          selectionStart + needsLeading.length + insertion.length;
-        const target = contentRef.current;
-        if (target) {
-          target.focus();
-          target.setSelectionRange(cursorPosition, cursorPosition);
+          const attachment: NoteAttachment = {
+            id: createRandomId("att"),
+            name: label,
+            size: resized.size,
+            type: resized.mimeType,
+            previewUrl: resized.dataUrl,
+            dataUrl: resized.dataUrl
+          };
+          addedAttachments.push(attachment);
         }
-      });
+
+        range.insertNode(fragment);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        const nextAttachments = [...draft.attachments];
+        addedAttachments.forEach((attachment) => {
+          if (!nextAttachments.some((existing) => existing.dataUrl === attachment.dataUrl)) {
+            nextAttachments.push(attachment);
+          }
+        });
+
+        syncMarkdownFromEditor(nextAttachments);
+      } finally {
+        setIsProcessingAttachments(false);
+      }
     },
-    [draft, onChange]
+    [draft.attachments, syncMarkdownFromEditor]
   );
 
   return (
@@ -273,37 +346,22 @@ export function NoteComposer({
         </div>
       )}
 
-      <label className="flex flex-col gap-2 flex-1">
+      <section className="flex flex-col gap-2">
         <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-          내용 (Markdown 지원)
+          본문 (이미지를 직접 붙여넣을 수 있습니다)
         </span>
-        <textarea
-          ref={contentRef}
-          className="rounded-2xl border border-[var(--color-border)] bg-white/80 dark:bg-slate-800/40 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-accent min-h-[12rem]"
-          value={draft.content}
-          onChange={(event) => onChange({ ...draft, content: event.target.value })}
+        <div
+          ref={editorRef}
+          className="rounded-2xl border border-[var(--color-border)] bg-white/80 dark:bg-slate-800/40 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-accent min-h-[12rem] whitespace-pre-wrap break-words"
+          contentEditable
+          suppressContentEditableWarning
+          onInput={handleEditorInput}
           onPaste={handleContentPaste}
-          placeholder="핵심 메모를 적어주세요. 목록에서는 앞부분만 표시됩니다."
+          role="textbox"
+          aria-multiline="true"
+          aria-label="본문 편집기"
+          dangerouslySetInnerHTML={{ __html: renderedHtml }}
         />
-      </label>
-
-      <section className="space-y-3">
-        <header className="flex items-center justify-between">
-          <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-            미리보기
-          </h3>
-          <span className="text-xs text-slate-400">이미지는 실제 크기와 동일하게 표시됩니다.</span>
-        </header>
-        <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-white/50 dark:bg-slate-900/30 px-4 py-3 overflow-auto">
-          {draft.content.trim().length === 0 ? (
-            <p className="text-xs text-slate-400">본문을 입력하거나 이미지를 붙여넣으면 여기서 바로 확인할 수 있어요.</p>
-          ) : (
-            <article
-              className="prose prose-slate dark:prose-invert max-w-none text-sm leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: renderedPreview }}
-            />
-          )}
-        </div>
       </section>
 
       <section className="space-y-3">
@@ -311,9 +369,7 @@ export function NoteComposer({
           <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
             첨부파일
           </h3>
-          <span className="text-xs text-slate-400">
-            {draft.attachments.length}개 추가됨
-          </span>
+          <span className="text-xs text-slate-400">{draft.attachments.length}개 추가됨</span>
         </header>
 
         <label className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-[var(--color-border)] bg-white/40 dark:bg-slate-800/30 px-6 py-8 text-center text-sm text-slate-500 dark:text-slate-300 cursor-pointer hover:bg-white/70 transition">

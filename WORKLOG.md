@@ -1,6 +1,10 @@
 # 작업 로그
 
 > 최신 작업을 문서 상단에 추가해주세요.
+## 2025-10-21 — Netlify Functions & CRUD 기본기
+- `netlify/functions`에 CRUD 함수(`notes-read/create/update/delete`)와 공통 유틸, Zod 검증을 추가.
+- Neon용 SQL 스키마(`db/schema.sql`)와 Netlify 배포 설정(`netlify.toml`) 구성, API 클라이언트/프론트 연동.
+- 확인: `npm install` 후 `npm run build`로 타입/번들 검증, Netlify Functions는 환경변수가 필요하므로 로컬에서 `NETLIFY_DATABASE_URL` 설정 후 `netlify dev`로 호출 점검.
 
 ## 2025-10-21 — 메모 웹앱 메인 UI 초기 구축
 - Vite + React + Tailwind 기반 프로젝트 구조 생성(`package.json`, `tsconfig`, `vite.config.ts` 등).

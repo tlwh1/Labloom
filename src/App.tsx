@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { SidebarFilters } from "./components/SidebarFilters";
 import { NoteList } from "./components/NoteList";
 import { NoteDetail } from "./components/NoteDetail";
 import { mockNotes } from "./data/mockNotes";
 import { Note } from "./types/note";
+import { listNotes } from "./lib/api";
 
 function filterNotes(
   notes: Note[],
@@ -27,21 +28,50 @@ function filterNotes(
 }
 
 export default function App() {
+  const [allNotes, setAllNotes] = useState<Note[]>(mockNotes);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(mockNotes[0]?.id ?? null);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const filteredNotes = useMemo(
     () =>
-      filterNotes(mockNotes, {
+      filterNotes(allNotes, {
         search,
         category: selectedCategory,
         tags: selectedTags
       }),
-    [search, selectedCategory, selectedTags]
+    [allNotes, search, selectedCategory, selectedTags]
   );
+
+  const fetchNotes = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      const notes = await listNotes();
+      if (Array.isArray(notes) && notes.length > 0) {
+        setAllNotes(notes);
+        setLoadError(null);
+        setSelectedNoteId(notes[0]?.id ?? null);
+      } else {
+        setAllNotes([]);
+        setLoadError("저장된 메모가 없습니다. 새 메모를 생성해보세요.");
+        setSelectedNoteId(null);
+      }
+    } catch (error) {
+      console.warn("원격 메모를 불러오지 못했습니다. mock 데이터로 대체합니다.", error);
+      setAllNotes(mockNotes);
+      setLoadError("Neon 연결을 확인하기 전까지는 목업 데이터를 사용합니다.");
+      setSelectedNoteId(mockNotes[0]?.id ?? null);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotes();
+  }, [fetchNotes]);
 
   useEffect(() => {
     if (filteredNotes.length === 0) {
@@ -68,8 +98,7 @@ export default function App() {
   };
 
   const handleManualSync = () => {
-    setIsSyncing(true);
-    window.setTimeout(() => setIsSyncing(false), 1200);
+    void fetchNotes();
   };
 
   return (
@@ -84,6 +113,7 @@ export default function App() {
           <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Labloom Notes</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">
             Netlify Functions와 Neon(PostgreSQL)로 확장 가능한 메모 워크플로를 구축하는 중입니다.
+            {loadError && <span className="ml-2 text-accent font-medium">{loadError}</span>}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -106,7 +136,7 @@ export default function App() {
 
       <div className="relative grid grid-cols-1 gap-4 xl:grid-cols-[18rem,1fr,1.6fr] xl:gap-6 2xl:grid-cols-[18rem,1.2fr,1.8fr]">
         <SidebarFilters
-          notes={mockNotes}
+          notes={allNotes}
           selectedCategory={selectedCategory}
           selectedTags={selectedTags}
           onCategoryChange={setSelectedCategory}

@@ -66,7 +66,7 @@ export function NoteDetail({ note }: NoteDetailProps) {
           <ul className="space-y-2">
             {note.attachments.map((attachment) => (
               <li
-                key={attachment.id}
+                key={attachment.id ?? attachment.name}
                 className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] px-4 py-3 bg-white/60 dark:bg-slate-800/40"
               >
                 <div className="flex flex-col">

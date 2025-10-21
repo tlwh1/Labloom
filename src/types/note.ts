@@ -3,6 +3,14 @@ export type NoteTag = {
   label: string;
 };
 
+export type NoteAttachment = {
+  id?: string;
+  name: string;
+  size: number;
+  type: string;
+  previewUrl?: string;
+};
+
 export type Note = {
   id: string;
   title: string;
@@ -11,11 +19,5 @@ export type Note = {
   updatedAt: string;
   category: string;
   tags: NoteTag[];
-  attachments: Array<{
-    id: string;
-    name: string;
-    size: number;
-    type: string;
-    previewUrl?: string;
-  }>;
+  attachments: NoteAttachment[];
 };

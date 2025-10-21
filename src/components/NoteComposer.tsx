@@ -1,8 +1,17 @@
-import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import {
+  ChangeEvent,
+  ClipboardEvent,
+  FormEvent,
+  useCallback,
+  useMemo,
+  useRef,
+  useState
+} from "react";
 import { TagBadge } from "./TagBadge";
 import { parseTagInput } from "../lib/tags";
 import { createRandomId } from "../lib/id";
 import type { NoteAttachment } from "../types/note";
+import { estimateDataUrlSize, fileToDataUrl, resizeImageFile } from "../lib/images";
 
 export type NoteComposerDraft = {
   title: string;
@@ -36,19 +45,12 @@ export function NoteComposer({
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024; // 10MB
   const isEditMode = mode === "edit";
+  const contentRef = useRef<HTMLTextAreaElement | null>(null);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     onSubmit();
   };
-
-  const readFileAsDataUrl = (file: File) =>
-    new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(file);
-    });
 
   const handleAttachmentAdd = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
@@ -73,19 +75,37 @@ export function NoteComposer({
     try {
       const processed = await Promise.all(
         allowedFiles.map(async (file) => {
-          const dataUrl = await readFileAsDataUrl(file);
-          const type = file.type || "application/octet-stream";
-
-          const attachment: NoteAttachment = {
+          const base: NoteAttachment = {
             id: createRandomId("att"),
             name: file.name,
             size: file.size,
-            type,
+            type: file.type || "application/octet-stream",
+            previewUrl: undefined,
+            dataUrl: undefined
+          };
+
+          if (file.type.startsWith("image/")) {
+            const resized = await resizeImageFile(file, {
+              maxWidth: 1600,
+              maxHeight: 1600,
+              quality: 0.82
+            });
+            return {
+              ...base,
+              size: resized.size,
+              type: resized.mimeType,
+              previewUrl: resized.dataUrl,
+              dataUrl: resized.dataUrl
+            };
+          }
+
+          const dataUrl = await fileToDataUrl(file);
+          return {
+            ...base,
+            size: estimateDataUrlSize(dataUrl) || file.size,
             previewUrl: dataUrl,
             dataUrl
           };
-
-          return attachment;
         })
       );
 
@@ -109,6 +129,71 @@ export function NoteComposer({
       )
     });
   };
+
+  const handleContentPaste = useCallback(
+    async (event: ClipboardEvent<HTMLTextAreaElement>) => {
+      const items = Array.from(event.clipboardData?.items ?? []);
+      const imageFiles = items
+        .filter((item) => item.type.startsWith("image/"))
+        .map((item) => item.getAsFile())
+        .filter((file): file is File => file !== null);
+
+      if (imageFiles.length === 0) {
+        return;
+      }
+
+      event.preventDefault();
+
+      const textarea = contentRef.current;
+      if (!textarea) return;
+
+      const selectionStart = textarea.selectionStart ?? draft.content.length;
+      const selectionEnd = textarea.selectionEnd ?? draft.content.length;
+      const before = draft.content.slice(0, selectionStart);
+      const after = draft.content.slice(selectionEnd);
+
+      const processed = await Promise.all(
+        imageFiles.map(async (file, index) => {
+          const resized = await resizeImageFile(file, {
+            maxWidth: 1600,
+            maxHeight: 1600,
+            quality: 0.8
+          });
+          const label = file.name || `clipboard-image-${Date.now()}-${index + 1}`;
+          return `![${label}](${resized.dataUrl})`;
+        })
+      );
+
+      const textData = event.clipboardData?.getData("text/plain") ?? "";
+      const segments = [
+        textData.trim().length > 0 ? textData.trim() : null,
+        ...processed
+      ].filter(Boolean) as string[];
+
+      const insertion = segments.join("\n\n");
+
+      const needsLeading = before.length > 0 && !before.endsWith("\n") ? "\n\n" : "";
+      const needsTrailing = after.length > 0 && !after.startsWith("\n") ? "\n\n" : "";
+
+      const nextContent = `${before}${needsLeading}${insertion}${needsTrailing}${after}`;
+
+      onChange({
+        ...draft,
+        content: nextContent
+      });
+
+      requestAnimationFrame(() => {
+        const cursorPosition =
+          selectionStart + needsLeading.length + insertion.length;
+        const target = contentRef.current;
+        if (target) {
+          target.focus();
+          target.setSelectionRange(cursorPosition, cursorPosition);
+        }
+      });
+    },
+    [draft, onChange]
+  );
 
   return (
     <form
@@ -186,9 +271,11 @@ export function NoteComposer({
           내용 (Markdown 지원)
         </span>
         <textarea
+          ref={contentRef}
           className="rounded-2xl border border-[var(--color-border)] bg-white/80 dark:bg-slate-800/40 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-accent min-h-[12rem]"
           value={draft.content}
           onChange={(event) => onChange({ ...draft, content: event.target.value })}
+          onPaste={handleContentPaste}
           placeholder="핵심 메모를 적어주세요. 목록에서는 앞부분만 표시됩니다."
         />
       </label>

@@ -16,6 +16,7 @@ import { estimateDataUrlSize, fileToDataUrl, resizeImageFile } from "../lib/imag
 import { marked } from "marked";
 import DOMPurify from "dompurify";
 import TurndownService from "turndown";
+import dayjs from "../lib/dayjs";
 
 export type NoteComposerDraft = {
   title: string;
@@ -240,7 +241,8 @@ export function NoteComposer({
               maxHeight: 1600,
               quality: 0.8
             });
-            const label = file.name || `clipboard-image-${Date.now()}-${index + 1}`;
+            const timestamp = dayjs().format("YYYYMMDD-HHmmss");
+            const label = file.name || `clipboard-image-${timestamp}-${index + 1}`;
 
             const img = document.createElement("img");
             img.src = resized.dataUrl;

@@ -113,13 +113,12 @@ export default function App() {
   const [remoteEnabled, setRemoteEnabled] = useState(defaultRemotePreference);
 
   useEffect(() => {
-    if (modeMessage.length > 0) return;
     setModeMessage(
       remoteEnabled
         ? "Netlify Functions에 연결된 원격 데이터 모드입니다."
         : "현재 로컬 데이터 모드입니다. Netlify Functions가 비활성 상태입니다."
     );
-  }, [remoteEnabled, modeMessage.length]);
+  }, [remoteEnabled]);
 
   const filteredNotes = useMemo(
     () =>
@@ -165,9 +164,6 @@ export default function App() {
         }
         setRemoteEnabled(true);
       } catch (error) {
-        if (import.meta.env.DEV) {
-          console.info("원격 함수에 연결하지 못했습니다. 로컬 모드로 전환합니다.", error);
-        }
         setRemoteEnabled(false);
         const stored = loadLocalNotes();
         const normalized = stored.length > 0 ? stored.map((note) => normalizeNote(note)) : normalizedMockNotes;
@@ -265,13 +261,13 @@ export default function App() {
       setComposerError(null);
       setIsDeleting(false);
 
-      if (remoteError) {
-        setLoadError("원격 삭제에 실패했습니다. 로컬 데이터에서 제거했습니다.");
-        setModeMessage("Netlify Functions에 연결하지 못해 로컬 데이터 모드로 전환했습니다.");
-      } else if (attemptedRemote) {
-        setLoadError(null);
-        setModeMessage("Netlify Functions에 연결된 원격 데이터 모드입니다.");
-      }
+        if (remoteError) {
+          setLoadError("원격 삭제에 실패했습니다. 로컬 데이터에서 제거했습니다.");
+          setModeMessage("Netlify Functions에 연결하지 못해 로컬 데이터 모드로 전환했습니다.");
+        } else if (attemptedRemote) {
+          setLoadError(null);
+          setModeMessage("Netlify Functions에 연결된 원격 데이터 모드입니다.");
+        }
     }
   }, [selectedNote, selectedNoteId, allNotes, remoteEnabled]);
 
@@ -486,7 +482,14 @@ export default function App() {
             {loadError && <span className="ml-2 text-accent font-medium">{loadError}</span>}
           </p>
           {modeMessage && (
-            <p className="text-xs font-medium text-slate-400 dark:text-slate-500">
+            <p
+              className={clsx(
+                "text-xs font-semibold",
+                remoteEnabled
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-amber-500/80 dark:text-amber-300/80"
+              )}
+            >
               {modeMessage}
             </p>
           )}

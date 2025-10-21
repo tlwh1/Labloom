@@ -443,6 +443,7 @@ export function NoteComposer({
         )}
         {attachmentError && <p className="text-xs text-red-500">{attachmentError}</p>}
       </section>
+      </div>
 
       <div className="sticky bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white/95 to-white/0 dark:from-slate-900 dark:via-slate-900/95 dark:to-slate-900/0">
         <div className="flex flex-wrap items-center justify-between gap-3 p-4">

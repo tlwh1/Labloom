@@ -2,9 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { SidebarFilters } from "./components/SidebarFilters";
 import { NoteList } from "./components/NoteList";
 import { NoteDetail } from "./components/NoteDetail";
+import { NoteComposer, type NoteComposerDraft } from "./components/NoteComposer";
 import { mockNotes } from "./data/mockNotes";
 import { Note } from "./types/note";
-import { listNotes } from "./lib/api";
+import { createNote, listNotes } from "./lib/api";
+import type { NoteInput } from "./lib/api";
+import { parseTagInput } from "./lib/tags";
+import { createRandomId } from "./lib/id";
 
 function filterNotes(
   notes: Note[],
@@ -35,6 +39,9 @@ export default function App() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [composerDraft, setComposerDraft] = useState<NoteComposerDraft | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [composerError, setComposerError] = useState<string | null>(null);
 
   const filteredNotes = useMemo(
     () =>
@@ -46,7 +53,16 @@ export default function App() {
     [allNotes, search, selectedCategory, selectedTags]
   );
 
+  const useRemoteApi = import.meta.env.VITE_USE_REMOTE_API === "true";
+
   const fetchNotes = useCallback(async () => {
+    if (!useRemoteApi) {
+      setAllNotes(mockNotes);
+      setSelectedNoteId(mockNotes[0]?.id ?? null);
+      setLoadError("Netlify Functions 연결을 설정하기 전까지는 목업 데이터를 사용합니다.");
+      return;
+    }
+
     setIsSyncing(true);
     try {
       const notes = await listNotes();
@@ -67,7 +83,7 @@ export default function App() {
     } finally {
       setIsSyncing(false);
     }
-  }, []);
+  }, [useRemoteApi]);
 
   useEffect(() => {
     fetchNotes();
@@ -79,11 +95,18 @@ export default function App() {
       return;
     }
 
+    if (selectedNoteId === null) {
+      if (!composerDraft) {
+        setSelectedNoteId(filteredNotes[0]?.id ?? null);
+      }
+      return;
+    }
+
     const stillVisible = filteredNotes.some((note) => note.id === selectedNoteId);
     if (!stillVisible) {
-      setSelectedNoteId(filteredNotes[0]?.id ?? null);
+      setSelectedNoteId(composerDraft ? null : filteredNotes[0]?.id ?? null);
     }
-  }, [filteredNotes, selectedNoteId]);
+  }, [filteredNotes, selectedNoteId, composerDraft]);
 
   const selectedNote = filteredNotes.find((note) => note.id === selectedNoteId) ?? null;
 
@@ -94,12 +117,99 @@ export default function App() {
   };
 
   const handleNewNote = () => {
+    setComposerDraft({
+      title: "",
+      content: "",
+      category: "",
+      tagsInput: ""
+    });
+    setComposerError(null);
     setSelectedNoteId(null);
   };
 
   const handleManualSync = () => {
     void fetchNotes();
   };
+
+  const handleSelectNote = useCallback(
+    (id: string) => {
+      setComposerDraft(null);
+      setComposerError(null);
+      setSelectedNoteId(id);
+    },
+    []
+  );
+
+  const handleCancelComposer = () => {
+    setComposerDraft(null);
+    setComposerError(null);
+  };
+
+  const handleComposerSubmit = useCallback(async () => {
+    if (!composerDraft) return;
+
+    const title = composerDraft.title.trim();
+    if (!title) {
+      setComposerError("제목을 입력해주세요.");
+      return;
+    }
+
+    const tags = parseTagInput(composerDraft.tagsInput);
+    const payload: NoteInput = {
+      title,
+      content: composerDraft.content,
+      category: composerDraft.category.trim(),
+      tags,
+      attachments: []
+    };
+
+    const nowIso = new Date().toISOString();
+
+    setComposerError(null);
+    setIsSaving(true);
+
+    try {
+      let createdNote: Note | null = null;
+
+      if (useRemoteApi) {
+        createdNote = await createNote(payload);
+      }
+
+      const finalNote =
+        createdNote ??
+        {
+          ...payload,
+          id: createRandomId("note"),
+          createdAt: nowIso,
+          updatedAt: nowIso
+        };
+
+      setAllNotes((prev) => [finalNote, ...prev.filter((note) => note.id !== finalNote.id)]);
+      setSelectedNoteId(finalNote.id);
+
+      if (useRemoteApi && createdNote) {
+        setLoadError(null);
+      }
+
+      setComposerDraft(null);
+    } catch (error) {
+      console.warn("메모 생성 중 문제가 발생했습니다. 임시 메모로 대체합니다.", error);
+
+      const fallbackNote: Note = {
+        ...payload,
+        id: createRandomId("note"),
+        createdAt: nowIso,
+        updatedAt: nowIso
+      };
+
+      setAllNotes((prev) => [fallbackNote, ...prev.filter((note) => note.id !== fallbackNote.id)]);
+      setSelectedNoteId(fallbackNote.id);
+      setLoadError("원격 저장에 실패했습니다. 임시로 로컬에 추가했습니다.");
+      setComposerDraft(null);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [composerDraft, useRemoteApi]);
 
   return (
     <div className="relative min-h-screen px-6 py-10 md:px-10 bg-[var(--color-background)]">
@@ -127,7 +237,8 @@ export default function App() {
           <button
             type="button"
             onClick={handleNewNote}
-            className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-white shadow hover:shadow-lg transition"
+            className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-white shadow hover:shadow-lg transition disabled:cursor-not-allowed disabled:opacity-70"
+            disabled={isSaving}
           >
             새 메모 만들기
           </button>
@@ -147,9 +258,20 @@ export default function App() {
         <NoteList
           notes={filteredNotes}
           selectedId={selectedNoteId}
-          onSelect={setSelectedNoteId}
+          onSelect={handleSelectNote}
         />
-        <NoteDetail note={selectedNote} />
+        {composerDraft ? (
+          <NoteComposer
+            draft={composerDraft}
+            onChange={(nextDraft) => setComposerDraft(nextDraft)}
+            onCancel={handleCancelComposer}
+            onSubmit={handleComposerSubmit}
+            isSubmitting={isSaving}
+            error={composerError}
+          />
+        ) : (
+          <NoteDetail note={selectedNote} />
+        )}
       </div>
     </div>
   );

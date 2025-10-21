@@ -1,6 +1,11 @@
 # 작업 로그
 
 > 최신 작업을 문서 상단에 추가해주세요.
+## 2025-10-21 — 메모 작성 UI 및 API 토글
+- `src/App.tsx`에 로컬/원격 API 전환(`VITE_USE_REMOTE_API`)을 도입하고, 새 메모 작성을 위한 `NoteComposer` 흐름과 임시 저장 로직을 추가.
+- `src/components/NoteComposer.tsx`, `src/lib/tags.ts` 등 보조 유틸을 생성해 태그 파싱과 ID 생성을 모듈화.
+- 확인: `npm run build` 실행 시 `tsc` 바이너리가 없어 실패(`tsc: not found`)하여 설치 후 재시도가 필요.
+
 ## 2025-10-21 — Netlify Functions & CRUD 기본기
 - `netlify/functions`에 CRUD 함수(`notes-read/create/update/delete`)와 공통 유틸, Zod 검증을 추가.
 - Neon용 SQL 스키마(`db/schema.sql`)와 Netlify 배포 설정(`netlify.toml`) 구성, API 클라이언트/프론트 연동.

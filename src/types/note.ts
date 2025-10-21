@@ -9,6 +9,7 @@ export type NoteAttachment = {
   size: number;
   type: string;
   previewUrl?: string;
+  dataUrl?: string;
 };
 
 export type Note = {

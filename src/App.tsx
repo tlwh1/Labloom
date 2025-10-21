@@ -32,6 +32,14 @@ function filterNotes(
   });
 }
 
+type NormalizableAttachment = Partial<NoteAttachment> & {
+  name?: string;
+  size?: number;
+  type?: string;
+  previewUrl?: string;
+  dataUrl?: string;
+};
+
 type NormalizableNote = {
   id: string;
   title: string;
@@ -40,8 +48,23 @@ type NormalizableNote = {
   updatedAt: string;
   category?: string | null;
   tags?: NoteTag[] | null;
-  attachments?: NoteAttachment[] | null;
+  attachments?: NormalizableAttachment[] | null;
 };
+
+function normalizeAttachment(attachment: NormalizableAttachment): NoteAttachment {
+  const fallbackPreview = attachment.previewUrl ?? attachment.dataUrl ?? "";
+  const dataUrl =
+    attachment.dataUrl ?? (fallbackPreview.startsWith("data:") ? fallbackPreview : undefined);
+
+  return {
+    id: attachment.id ?? createRandomId("att"),
+    name: attachment.name ?? "첨부파일",
+    size: typeof attachment.size === "number" ? attachment.size : 0,
+    type: attachment.type ?? "application/octet-stream",
+    previewUrl: fallbackPreview || undefined,
+    dataUrl
+  };
+}
 
 function normalizeNote(note: NormalizableNote): Note {
   return {
@@ -50,7 +73,9 @@ function normalizeNote(note: NormalizableNote): Note {
     content: note.content,
     category: note.category ?? "",
     tags: Array.isArray(note.tags) ? note.tags : [],
-    attachments: Array.isArray(note.attachments) ? note.attachments : [],
+    attachments: Array.isArray(note.attachments)
+      ? note.attachments.map((attachment) => normalizeAttachment(attachment))
+      : [],
     createdAt: note.createdAt,
     updatedAt: note.updatedAt
   };
@@ -177,7 +202,8 @@ export default function App() {
       title: "",
       content: "",
       category: "",
-      tagsInput: ""
+      tagsInput: "",
+      attachments: []
     });
     setComposerError(null);
     setSelectedNoteId(null);
@@ -216,7 +242,7 @@ export default function App() {
       content: composerDraft.content,
       category: composerDraft.category.trim(),
       tags,
-      attachments: []
+      attachments: composerDraft.attachments
     };
 
     const nowIso = new Date().toISOString();

@@ -67,31 +67,54 @@ export function NoteDetail({ note }: NoteDetailProps) {
           <p className="text-sm text-slate-400">첨부파일이 아직 없습니다.</p>
         ) : (
           <ul className="space-y-2">
-            {note.attachments.map((attachment) => (
-              <li
-                key={attachment.id ?? attachment.name}
-                className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] px-4 py-3 bg-white/60 dark:bg-slate-800/40"
-              >
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                    {attachment.name}
-                  </span>
-                  <span className="text-xs text-slate-400">
-                    {(attachment.size / (1024 * 1024)).toFixed(2)} MB · {attachment.type}
-                  </span>
-                </div>
-                {attachment.previewUrl && (
-                  <a
-                    href={attachment.previewUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs text-accent hover:underline"
-                  >
-                    미리보기
-                  </a>
-                )}
-              </li>
-            ))}
+            {note.attachments.map((attachment) => {
+              const previewSource = attachment.previewUrl ?? attachment.dataUrl ?? "";
+              const isImage =
+                attachment.type?.startsWith("image/") ??
+                (typeof previewSource === "string" && previewSource.startsWith("data:image"));
+
+              return (
+                <li
+                  key={attachment.id ?? attachment.name}
+                  className="flex items-center justify-between gap-4 rounded-2xl border border-[var(--color-border)] px-4 py-3 bg-white/60 dark:bg-slate-800/40"
+                >
+                  <div className="flex items-center gap-3">
+                    {isImage && previewSource ? (
+                      <img
+                        src={previewSource}
+                        alt={attachment.name}
+                        className="h-12 w-12 rounded-xl object-cover border border-[var(--color-border)]"
+                      />
+                    ) : (
+                      <div className="h-12 w-12 rounded-xl border border-dashed border-[var(--color-border)] flex items-center justify-center text-xs text-slate-400">
+                        파일
+                      </div>
+                    )}
+
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                        {attachment.name}
+                      </span>
+                      <span className="text-xs text-slate-400">
+                        {(attachment.size / (1024 * 1024)).toFixed(2)} MB · {attachment.type}
+                      </span>
+                    </div>
+                  </div>
+
+                  {previewSource && (
+                    <a
+                      href={previewSource}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-accent hover:underline"
+                      download={attachment.name}
+                    >
+                      {isImage ? "이미지 보기" : "파일 열기"}
+                    </a>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

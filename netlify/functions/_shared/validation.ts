@@ -10,7 +10,25 @@ export const attachmentSchema = z.object({
   name: z.string().min(1),
   size: z.number().int().nonnegative(),
   type: z.string().min(1),
-  previewUrl: z.string().url().optional()
+  previewUrl: z
+    .string()
+    .min(1)
+    .refine((value) => {
+      if (value.startsWith("data:")) {
+        return true;
+      }
+      try {
+        const parsed = new URL(value);
+        return parsed.protocol === "http:" || parsed.protocol === "https:";
+      } catch {
+        return false;
+      }
+    }, "미리보기 URL은 http(s) 또는 data URL이어야 합니다.")
+    .optional(),
+  dataUrl: z
+    .string()
+    .refine((value) => value.startsWith("data:"), "dataUrl은 data: 스킴을 포함해야 합니다.")
+    .optional()
 });
 
 export const notePayloadSchema = z.object({

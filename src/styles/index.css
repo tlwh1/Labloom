@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --color-background: #f2f4f8;
+  --color-surface: rgba(255, 255, 255, 0.85);
+  --color-surface-hover: rgba(255, 255, 255, 0.95);
+  --color-accent: #6366f1;
+  --color-accent-muted: #a5b4fc;
+  --color-border: rgba(15, 23, 42, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --color-background: #0f172a;
+    --color-surface: rgba(15, 23, 42, 0.82);
+    --color-surface-hover: rgba(15, 23, 42, 0.92);
+    --color-accent: #8b5cf6;
+    --color-accent-muted: rgba(139, 92, 246, 0.25);
+    --color-border: rgba(148, 163, 184, 0.18);
+  }
+}
+
+body {
+  @apply font-sans bg-[var(--color-background)] text-slate-900 dark:text-slate-100 min-h-screen;
+}
+
+#root {
+  @apply min-h-screen;
+}
+
+.glass-panel {
+  @apply bg-[var(--color-surface)] backdrop-blur-xl border border-[var(--color-border)] shadow-soft;
+}
+
+.glass-panel-hover {
+  @apply hover:bg-[var(--color-surface-hover)] transition;
+}

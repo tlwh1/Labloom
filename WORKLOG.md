@@ -2,6 +2,11 @@
 
 > 최신 작업을 문서 상단에 추가해주세요.
 
+## 2025-10-21 — 메모 웹앱 메인 UI 초기 구축
+- Vite + React + Tailwind 기반 프로젝트 구조 생성(`package.json`, `tsconfig`, `vite.config.ts` 등).
+- 3단 메모 레이아웃(필터·목록·상세)과 Markdown 렌더링, 태그/검색 필터 mock 데이터 연결.
+- 확인: `npm install`, `npm run dev` 후 브라우저에서 필터/검색 인터랙션과 Markdown 렌더링 시각 확인.
+
 ## 2025-10-21 — 가이드라인 한글화 및 커뮤니케이션 규칙
 - `AGENTS.md`를 한국어로 변환하고 작업 로그 및 응답 포맷 기준을 명시.
 - `WORKLOG.md` 생성 및 향후 기록 절차 확립.

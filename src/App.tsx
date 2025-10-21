@@ -4,7 +4,7 @@ import { NoteList } from "./components/NoteList";
 import { NoteDetail } from "./components/NoteDetail";
 import { NoteComposer, type NoteComposerDraft } from "./components/NoteComposer";
 import { mockNotes } from "./data/mockNotes";
-import { Note } from "./types/note";
+import { Note, type NoteAttachment, type NoteTag } from "./types/note";
 import { createNote, listNotes } from "./lib/api";
 import type { NoteInput } from "./lib/api";
 import { parseTagInput } from "./lib/tags";
@@ -31,8 +31,32 @@ function filterNotes(
   });
 }
 
+type NormalizableNote = {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  category?: string | null;
+  tags?: NoteTag[] | null;
+  attachments?: NoteAttachment[] | null;
+};
+
+function normalizeNote(note: NormalizableNote): Note {
+  return {
+    id: note.id,
+    title: note.title,
+    content: note.content,
+    category: note.category ?? "",
+    tags: Array.isArray(note.tags) ? note.tags : [],
+    attachments: Array.isArray(note.attachments) ? note.attachments : [],
+    createdAt: note.createdAt,
+    updatedAt: note.updatedAt
+  };
+}
+
 export default function App() {
-  const [allNotes, setAllNotes] = useState<Note[]>(mockNotes);
+  const [allNotes, setAllNotes] = useState<Note[]>(() => mockNotes.map(normalizeNote));
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(mockNotes[0]?.id ?? null);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -59,8 +83,9 @@ export default function App() {
 
   const fetchNotes = useCallback(async () => {
     if (!useRemoteApi) {
-      setAllNotes(mockNotes);
-      setSelectedNoteId(mockNotes[0]?.id ?? null);
+      const normalizedMock = mockNotes.map(normalizeNote);
+      setAllNotes(normalizedMock);
+      setSelectedNoteId(normalizedMock[0]?.id ?? null);
       setLoadError("Netlify Functions를 실행하기 전이라 목업 데이터를 사용합니다.");
       return;
     }
@@ -69,9 +94,10 @@ export default function App() {
     try {
       const notes = await listNotes();
       if (Array.isArray(notes) && notes.length > 0) {
-        setAllNotes(notes);
+        const normalizedRemote = notes.map(normalizeNote);
+        setAllNotes(normalizedRemote);
         setLoadError(null);
-        setSelectedNoteId(notes[0]?.id ?? null);
+        setSelectedNoteId(normalizedRemote[0]?.id ?? null);
       } else {
         setAllNotes([]);
         setLoadError("저장된 메모가 없습니다. 새 메모를 생성해보세요.");
@@ -79,9 +105,10 @@ export default function App() {
       }
     } catch (error) {
       console.warn("원격 메모를 불러오지 못했습니다. mock 데이터로 대체합니다.", error);
-      setAllNotes(mockNotes);
+      const normalizedMock = mockNotes.map(normalizeNote);
+      setAllNotes(normalizedMock);
       setLoadError("Netlify Functions 또는 데이터베이스 연결을 확인하기 전까지는 목업 데이터를 사용합니다.");
-      setSelectedNoteId(mockNotes[0]?.id ?? null);
+      setSelectedNoteId(normalizedMock[0]?.id ?? null);
     } finally {
       setIsSyncing(false);
     }
@@ -174,17 +201,22 @@ export default function App() {
       let createdNote: Note | null = null;
 
       if (useRemoteApi) {
-        createdNote = await createNote(payload);
+        const remoteNote = await createNote(payload);
+        createdNote = normalizeNote(remoteNote);
       }
 
-      const finalNote =
-        createdNote ??
-        {
-          ...payload,
+      const finalNote = normalizeNote(
+        createdNote ?? {
           id: createRandomId("note"),
+          title: payload.title,
+          content: payload.content,
+          category: payload.category ?? "",
+          tags: payload.tags ?? [],
+          attachments: payload.attachments ?? [],
           createdAt: nowIso,
           updatedAt: nowIso
-        };
+        }
+      );
 
       setAllNotes((prev) => [finalNote, ...prev.filter((note) => note.id !== finalNote.id)]);
       setSelectedNoteId(finalNote.id);
@@ -197,12 +229,12 @@ export default function App() {
     } catch (error) {
       console.warn("메모 생성 중 문제가 발생했습니다. 임시 메모로 대체합니다.", error);
 
-      const fallbackNote: Note = {
+      const fallbackNote = normalizeNote({
         ...payload,
         id: createRandomId("note"),
         createdAt: nowIso,
         updatedAt: nowIso
-      };
+      });
 
       setAllNotes((prev) => [fallbackNote, ...prev.filter((note) => note.id !== fallbackNote.id)]);
       setSelectedNoteId(fallbackNote.id);

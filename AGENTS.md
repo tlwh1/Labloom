@@ -27,7 +27,7 @@ Labloom은 간결하면서도 확장 가능한 포트폴리오를 목표로 합�
 - 스냅샷은 컴포넌트와 같은 위치에 두며, 의도적인 UI 변경 시에만 갱신합니다.
 
 ## 커밋 & PR 가이드
-- Conventional Commits(`feat:`, `fix:`, `chore:` 등)을 따르고, 범위를 기능 폴더로 한정합니다 (`feat(hero): ...`). 
+- Conventional Commits(`feat:`, `fix:`, `chore:` 등)을 따르고, 범위를 기능 폴더로 한정합니다 (`feat(hero): ...`). 내용은 한국어. 
 - 형식은 영어 (`feat:`, `fix:`, `chore:` 등) 내용은 한국어로 명시.
 - PR에는 문제 정의, 구현 요약, UI 변경 시 스크린샷/녹화 링크를 포함합니다.
 - GitHub 이슈를 `Closes #ID`로 링크하고, 변화량은 300라인 내외로 유지해 리뷰 효율을 높입니다.
